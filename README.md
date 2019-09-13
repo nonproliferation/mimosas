@@ -43,6 +43,7 @@ Adding additional algorithms is quite simple - it only involves implementing the
 ### Config file options
 
 Config files are broken down into 4 major components - [MAIN] [ALGORITHM OPTIONS] [TRAINING_DATA] [EVALUATION_DATA], each serving a different function.
+
     [MAIN] - options that govern the overall operation of the analysis suite (ex. verbose mode, plotting enabled, etc.)
     [ALGORITHM OPTIONS] - each algorithm has its own section (ex. [DECISION_TREE]) that contains options specific to that algorithm. If an algorithm section is excluded entirely (ex. doesn't have [RANDOM_FOREST]), then that algorithm is not run.
     [TRAINING_DATA] - data cleaning and split options for training. certain options (ex. random shuffling) can be ignored for time-series algorithms.
@@ -50,12 +51,12 @@ Config files are broken down into 4 major components - [MAIN] [ALGORITHM OPTIONS
 
 ## Authors
 
-* **Jared Zhao
-* **Bethany L. Goldblum
-* **Christopher Stewart
-* **Alicia Ying-Ti Tsai
-* **Shruthi Chockkalingam
-* **Pedro Vicente Valdez
+* **Jared Zhao**
+* **Bethany L. Goldblum**
+* **Christopher Stewart**
+* **Alicia Ying-Ti Tsai**
+* **Shruthi Chockkalingam**
+* **Pedro Vicente Valdez**
 
 ## License
 
