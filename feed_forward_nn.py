@@ -214,8 +214,9 @@ class FeedForwardNN:
         model = KerasClassifier(build_fn=construct_network, n_features=len(X_train.columns.values), **constructor_kwargs)
         model.fit(X_train, y_train)
         score = scorer(y_eval, model.predict(X_eval))
+        cm = confusion_matrix(y_eval, model.predict(X_eval))
 
-        return score
+        return score, cm
 
             
     def recursive_feature_addition(self, X_train, X_eval, y_train, y_eval, scorer=mcc):
@@ -226,7 +227,7 @@ class FeedForwardNN:
             X_eval  - Required : Pandas dataframe containing test set input data (Dataframe)
             y_train - Required : Pandas dataframe containing training set labels (Dataframe)
             y_eval  - Required : Pandas dataframe containing test set labels (Dataframe)
-            scorer  - Optional : Metric which accepts true and predicted labels as inputs; used to score model
+            scorer  - Optional : Metric which accepts true and predicted labels as inputs; used to score models
         """
 
         # Log/report RFA execution
@@ -246,26 +247,30 @@ class FeedForwardNN:
         used_feats = []
 
         # DataFrame to hold RFA results
-        self.results['recursive_feature_addition'] = pd.DataFrame(columns=['score'])
+        self.results['recursive_feature_addition'] = pd.DataFrame(columns=['n_features', 'features', 'score ({})'.format(scorer.__name__), 'confusion_matrix'])
+        self.results['recursive_feature_addition'].set_index('n_features', inplace=True)
 
         # Maximum length of feature strings (used during logger column alignment)
-        pad = max(max(map(len, unused_feats)), len('Feature')+1)
+        pad = max(max(map(len, unused_feats)), len('Candidate Feature')+1)
 
         # Until there are no unincorporated features
-        while len(unused_feats) > 0:
+        while len(used_feats) < int(self.parameters.config['FEED_FORWARD']['Features_To_Select']):
 
             # DataFrame to hold scores of trial additions to existing input features
-            temp_model_scores = pd.DataFrame(columns=['score'], index=unused_feats)
+            candidate_scores = pd.DataFrame(columns=self.results['recursive_feature_addition'].columns, index=unused_feats)
 
             # Iterate through currently-unincorporated input features,
             # trying each one alongside the already-incorporated ones.
-            for feat in temp_model_scores.index:
+            for feat in candidate_scores.index:
 
                 # Clear keras session variables
                 keras.backend.clear_session()
 
+                # Print to terminal (not to logger) the current feature set
+                print('Training and scoring model with the following features:', used_feats + [feat])
+
                 # Build, fit, and score model using incorporated features plus the current candidate feature
-                score = self.add_candidate_feat(
+                score, cm = self.add_candidate_feat(
                     X_train=X_train[used_feats + [feat]],
                     X_eval=X_eval[used_feats + [feat]],
                     y_train=y_train,
@@ -275,30 +280,43 @@ class FeedForwardNN:
                 )
 
                 # Record score when candidate feature is includedmda_df = mda_df.sort_values(by=['accuracy'], ascending=False)
-                temp_model_scores.loc[feat].fillna(score, inplace=True)
+                candidate_scores.loc[feat].fillna({'features' : used_feats + [feat], 'score ({})'.format(scorer.__name__) : score, 'confusion_matrix' : cm}, inplace=True)
 
             # Sort candidate features by model prediction score and identify the best candidate feature
-            temp_model_scores.sort_values(by=['score'], ascending=False, inplace=True)
-            best_feat = temp_model_scores.head(n=1).index
+            candidate_scores.sort_values(by=['score ({})'.format(scorer.__name__)], ascending=False, inplace=True)
+            best_feat = candidate_scores.head(n=1).index.values[0]
 
             # Log/report scores of models trained with the candidate features
             self.logger.info('Model prediction scores with remaining candidate features:')
-            self.logger.info('{}  Score'.format('Feature'.ljust(pad)))
-            for i in temp_model_scores.index:
-                self.logger.info('{}: {:0.4f}'.format(i.rjust(pad), temp_model_scores.loc[i].values[0]))
-            self.logger.info('Incorporating the best candidate feature: {}.'.format(best_feat.values[0]))
+            self.logger.info('{}  Score ({})  {}'.format('Candidate Feature'.ljust(pad), scorer.__name__, 'Confusion Matrix'))
+            for i in candidate_scores.index:
+                self.logger.info(
+                    '{}: {}  {}'.format(
+                        i.rjust(pad),
+                        ('{:0.4f}'.format(candidate_scores.loc[i, 'score ({})'.format(scorer.__name__)])).rjust(len(scorer.__name__)+8),
+                        str(candidate_scores.loc[i, 'confusion_matrix']).replace('\n', ' ').replace('\r', '')
+                    )
+                )
+            self.logger.info('Incorporating the best candidate feature: {}.'.format(best_feat))
             self.logger.info('')
 
             # Incorporate the candidate feature and record its score
-            used_feats.extend(best_feat)
+            used_feats.append(best_feat)
             unused_feats.remove(best_feat)
-            self.results['recursive_feature_addition'] = self.results['recursive_feature_addition'].append(temp_model_scores.loc[best_feat])
+            self.results['recursive_feature_addition'].loc[len(candidate_scores.loc[best_feat, 'features'])] = candidate_scores.loc[best_feat]            
 
         # Log/report RFA scores
         self.logger.info('Recursive Feature Addition Results:')
-        self.logger.info('{}  Score'.format('Feature'.ljust(pad)))
+        self.logger.info('{}  {}  Score ({})  {}'.format('No. Features'.ljust(pad-7), 'Features'.ljust(len(', '.join(self.results['recursive_feature_addition'].loc[len(used_feats), 'features']))), scorer.__name__, 'Confusion Matrix'))
         for i in self.results['recursive_feature_addition'].index:
-            self.logger.info('{}: {:0.4f}'.format(i.rjust(pad), self.results['recursive_feature_addition'].loc[i].values[0]))
+            self.logger.info(
+                '{}: {}  {}  {}'.format(
+                    str(i).rjust(pad-6),
+                    ', '.join(self.results['recursive_feature_addition'].loc[i, 'features']).ljust(len(', '.join(self.results['recursive_feature_addition'].loc[len(used_feats), 'features']))),
+                    ('{:0.4f}'.format(self.results['recursive_feature_addition'].loc[i, 'score ({})'.format(scorer.__name__)])).rjust(len(scorer.__name__)+8),
+                    str(self.results['recursive_feature_addition'].loc[i, 'confusion_matrix']).replace('\n', ' ').replace('\r', '')
+                )
+            )
         self.logger.info('')
 
         return self.results['recursive_feature_addition']
@@ -312,7 +330,7 @@ class FeedForwardNN:
             X_eval  - Required : Pandas dataframe containing test set input data (Dataframe)
             y_train - Required : Pandas dataframe containing training set labels (Dataframe)
             y_eval  - Required : Pandas dataframe containing test set labels (Dataframe)
-            scorer  - Optional : Metric which accepts true and predicted labels as inputs; used to score model
+            scorer  - Optional : Metric which accepts true and predicted labels as inputs; used to score models
         """
 
         # Log/report RFA execution
@@ -386,7 +404,7 @@ class FeedForwardNN:
 
         # Log/Report recursive feature elimination results
         self.logger.info('Recursive Feature Elimination Results:')
-        self.logger.info('{}  Score'.format('Removed Feature'.ljust(pad)))
+        self.logger.info('{}  Score'.format('Removed Feature'.ljust(pad-1)))
         for i in self.results['recursive_feature_elimination'].index:
             self.logger.info('{}: {:0.4f}'.format(i.rjust(pad), self.results['recursive_feature_elimination'].loc[i].values[0]))
         self.logger.info('')
