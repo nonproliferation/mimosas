@@ -203,7 +203,8 @@ def run_feed_forward_nn(parameters):
     model.save_model()
 
     if (parameters.config['FEED_FORWARD']['Feature_Selection'] == 'True'):
-        model.select_features(X_train, X_eval, y_train, y_eval)
+        model.recursive_feature_addition(X_train, X_eval, y_train, y_eval)
+        model.recursive_feature_elimination(X_train, X_eval, y_train, y_eval)
 
     logger.info('DONE')
     logger.info('')

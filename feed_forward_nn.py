@@ -1,6 +1,7 @@
 from sklearn.metrics import matthews_corrcoef as mcc
 from sklearn.metrics import confusion_matrix, r2_score, make_scorer
 from sklearn.model_selection import GridSearchCV
+from sklearn.feature_selection import RFE
 
 import numpy as np
 import pandas as pd
@@ -174,10 +175,10 @@ class FeedForwardNN:
         """
 
         # Initialize DataFrame to hold results of permutation importance
-        perm_imps = pd.DataFrame(columns=['permuted_feature', 'scores'])
+        perm_imps = pd.DataFrame(columns=['permuted_feature', 'score'])
         
         # Populate features to be permuted and set its column as row indices
-        perm_imps['permuted_feature'] = self.parameters.config['TRAINING_DATA']['Cols_To_Use'].split(',') + ['none']
+        perm_imps['permuted_feature'] = list(X.columns.values) + ['none']
         perm_imps.set_index('permuted_feature', inplace=True)
 
         # Iterate value permutation and model evaluation through each feature
@@ -192,7 +193,7 @@ class FeedForwardNN:
             score = scorer(y, estimator.predict(X_permuted))
 
             # Populate row with evaluation metrics
-            perm_imps.loc[feat].fillna({'scores' : score}, inplace=True)
+            perm_imps.loc[feat].fillna({'score' : score}, inplace=True)
 
         return perm_imps
 
@@ -209,7 +210,7 @@ class FeedForwardNN:
             scorer             - Optional : Metric which accepts true and predicted labels as inputs; used to score model
         """
 
-        # Create compatibility-wrapped model with dim(X_train) input features
+        # Create compatibility-wrapped model with dim(X_train) input features, then fit and score it
         model = KerasClassifier(build_fn=construct_network, n_features=len(X_train.columns.values), **constructor_kwargs)
         model.fit(X_train, y_train)
         score = scorer(y_eval, model.predict(X_eval))
@@ -217,7 +218,7 @@ class FeedForwardNN:
         return score
 
             
-    def select_features(self, X_train, X_eval, y_train, y_eval, scorer=mcc):
+    def recursive_feature_addition(self, X_train, X_eval, y_train, y_eval, scorer=mcc):
         """
         Rank input feature importance using the Recursive Feature Addition algorithm
         @params:
@@ -263,6 +264,7 @@ class FeedForwardNN:
                 # Clear keras session variables
                 keras.backend.clear_session()
 
+                # Build, fit, and score model using incorporated features plus the current candidate feature
                 score = self.add_candidate_feat(
                     X_train=X_train[used_feats + [feat]],
                     X_eval=X_eval[used_feats + [feat]],
@@ -272,7 +274,7 @@ class FeedForwardNN:
                     scorer=scorer
                 )
 
-                # Record score when candidate feature is included
+                # Record score when candidate feature is includedmda_df = mda_df.sort_values(by=['accuracy'], ascending=False)
                 temp_model_scores.loc[feat].fillna(score, inplace=True)
 
             # Sort candidate features by model prediction score and identify the best candidate feature
@@ -300,6 +302,96 @@ class FeedForwardNN:
         self.logger.info('')
 
         return self.results['recursive_feature_addition']
+
+
+    def recursive_feature_elimination(self, X_train, X_eval, y_train, y_eval, scorer=mcc):
+        """
+        Rank input feature importance using the Recursive Feature Elimination algorithm
+        @params:
+            X_train - Required : Pandas dataframe containing training set input data (Dataframe)
+            X_eval  - Required : Pandas dataframe containing test set input data (Dataframe)
+            y_train - Required : Pandas dataframe containing training set labels (Dataframe)
+            y_eval  - Required : Pandas dataframe containing test set labels (Dataframe)
+            scorer  - Optional : Metric which accepts true and predicted labels as inputs; used to score model
+        """
+
+        # Log/report RFA execution
+        self.logger.info('Evaluating Feature Importance for Feed-Forward Neural Network using Recursive Feature Elimination (RFE)')
+        self.logger.info('')
+
+        # Copy of model parameter dict without n_features entry (which we want to dynamically change)
+        param_dict = self.results['best_params'].copy()
+        del param_dict['n_features']
+
+        # Log/report parameters of optimized model which are shared by all RFA-created models
+        self.logger.info('RFA Model Hyperparameters:')
+        [self.logger.info('{}: {}'.format(param, param_dict[param])) for param in param_dict]
+
+        # Initialize lists of unused and used columns
+        used_feats = self.parameters.config['TRAINING_DATA']['Cols_To_Use'].split(',')
+        removed_feats = ['none']
+        scores = []
+
+        # Maximum length of feature strings (used during logger column alignment)
+        pad = max(max(map(len, used_feats)), len('Permuted Feature')+1)
+
+        while len(used_feats) >= int(self.parameters.config['FEED_FORWARD']['Features_To_Select']):
+
+            print('RFE iteration using reduced feature set: {}'.format(used_feats))
+
+            # Training and Evaluation sets with partially-reduced feature set
+            X_train_reduced = X_train.copy()[used_feats]
+            X_eval_reduced = X_eval.copy()[used_feats]
+
+            # Clear keras session variables
+            keras.backend.clear_session()
+
+            # Create compatibility-wrapped model with dim(X_train_reduced) input features, then fit and score it
+            rfe_model = KerasClassifier(build_fn=construct_network, n_features=len(X_train_reduced.columns.values), **param_dict)
+            rfe_model.fit(X_train_reduced, y_train)
+
+            # Calculate permutation importance for the input features and sort by score (highest to lowest)
+            # of the model when it is used to predict with the data from the index feature shuffled
+            perm_imps = self.permutation_importance(estimator=rfe_model, X=X_eval_reduced, y=y_eval, scorer=mcc, n_rep=5, n_jobs=1)
+            perm_imps = perm_imps.sort_values(by=['score'], ascending=False)
+
+            # Log/report permutation importance scores for the partially-reduced feature set
+            self.logger.info('Permutation Importances of remaining candidate features:')
+            self.logger.info('{}  Score'.format('Permuted Feature'.ljust(pad)))
+            for i in perm_imps.index:
+                self.logger.info('{}: {:0.4f}'.format(i.rjust(pad), perm_imps.loc[i].values[0]))
+            self.logger.info('')
+
+            # Identify least-informative feature (prediction score suffered the least from shuffling its values;
+            # 'none' corresponds to no data shuffled).
+            worst_feats = perm_imps.head(n=2)
+            if worst_feats.index[0] == 'none':
+                worst_feat = worst_feats.index[1]
+            else:
+                worst_feat = worst_feats.index[0]
+        
+            # Remove worst-performing feature from next elimination iteration (if there will be one)
+            if not len(used_feats) == int(self.parameters.config['FEED_FORWARD']['Features_To_Select']):
+                removed_feats.append(worst_feat)
+
+            # Remove worst feature from used_feats
+            used_feats.remove(worst_feat)
+
+            # Record score of model with un-permuted inputs
+            scores.append(perm_imps.loc['none', 'score'])
+
+        # DataFrame to hold RFA results
+        self.results['recursive_feature_elimination'] = pd.DataFrame(columns=['score'], index=removed_feats)
+        self.results['recursive_feature_elimination'].loc[:, 'score'] = scores
+
+        # Log/Report recursive feature elimination results
+        self.logger.info('Recursive Feature Elimination Results:')
+        self.logger.info('{}  Score'.format('Removed Feature'.ljust(pad)))
+        for i in self.results['recursive_feature_elimination'].index:
+            self.logger.info('{}: {:0.4f}'.format(i.rjust(pad), self.results['recursive_feature_elimination'].loc[i].values[0]))
+        self.logger.info('')
+
+        return self.results['recursive_feature_elimination']
 
 
     def save_model(self):
