@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 from math import sqrt
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler, Normalizer
+from sklearn.preprocessing import StandardScaler, MinMaxScaler, Normalizer
 
 def load_scramble_data(parameters, logger):
     """
@@ -89,7 +89,7 @@ def normalize_features(data, columns):
         data        - Required  : the data from a single device which may contain remove_outliers (list)
         columns     - Required  : Params object representing model parameters (Params)
     """
-    normalizer = Normalizer()
+    normalizer = MinMaxScaler()
     normalized_data = normalizer.fit_transform(data[columns])  # return numpy array
     for idx, col in enumerate(columns):                        # replace original data
         data.loc[:, col] = normalized_data[:, idx]
