@@ -36,18 +36,18 @@ python main.py --license
 
 ### Architecture
 
-Analysis Refactor 2 is designed to be modular. It reads configuration inputs from any specified config file, and runs on any number of algorithms. Currently, random forest and decision tree are available. On running the algorithms, the user also has the option to run in Train&Test or Validation mode. Each algorithm has a Train and Test function for these purposes. The Test function is reused for Validation, as the implementation of the 2 are identical. However, it is important to note the operational differences between Test and Validation.
+MIMOSAS is designed to be modular. It reads configuration inputs from a specified configuration file and can run multiple classification algorithms. The user has the option to run in Train and Test or Validation mode. Each algorithm has a Train and Test function for these purposes. The Test function is reused for Validation, as the implementation of the two are identical. However, it is important to note the operational differences between Test and Validation.
 
-Adding additional algorithms is quite simple - it only involves implementing the train and test functions of the algorithm, adding a run function in main.py, and adding necessary algorithm options in source.config (where default config files are generated from). Parameter parsing is handled automatically, although one may find it beneficial to see how parameters are retrieved post parsing.
+Adding additional classifiers is quite simple - it only involves implementing the train and test functions of the algorithm, adding a run function in main.py, and adding necessary algorithm options in source.config. Parameter parsing is handled automatically, although one may find it beneficial to see how parameters are retrieved post-parsing.
 
 ### Config file options
 
 Config files are broken down into 4 major components - [MAIN] [ALGORITHM OPTIONS] [TRAINING_DATA] [EVALUATION_DATA], each serving a different function.
 
-    [MAIN] - options that govern the overall operation of the analysis suite (ex. verbose mode, plotting enabled, etc.)
-    [ALGORITHM OPTIONS] - each algorithm has its own section (ex. [DECISION_TREE]) that contains options specific to that algorithm. If an algorithm section is excluded entirely (ex. doesn't have [RANDOM_FOREST]), then that algorithm is not run.
-    [TRAINING_DATA] - data cleaning and split options for training. certain options (ex. random shuffling) can be ignored for time-series algorithms.
-    [EVALUATION_DATA] - data cleaning and split options for testing and evaluation. certain options (ex. random shuffling) can be ignored for time-series algorithms.
+    [MAIN] - options that govern the overall operation of the analysis suite (e.g. verbose mode, plotting enabled, etc.)
+    [ALGORITHM OPTIONS] - each classifier has its own section (e.g. [DECISION_TREE]) that contains options specific to that classifier. If an algorithm section is excluded entirely (e.g. doesn't have [RANDOM_FOREST]), then that algorithm is not run.
+    [TRAINING_DATA] - data cleaning and split options for training. certain options (e.g. random shuffling) can be ignored for time-series algorithms.
+    [EVALUATION_DATA] - data cleaning and split options for testing and evaluation. certain options (e.g. random shuffling) can be ignored for time-series algorithms.
 
 ## Authors
 
