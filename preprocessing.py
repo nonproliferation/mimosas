@@ -122,11 +122,11 @@ def remove_outliers(data, parameters, logger, mode):
 
     # Initialize local variables
     cols_to_cull_on = parameters.config[mode]['Remove_Outlier_Cols'].split(',')
+    ids = list(data[parameters.config[mode]['Device_ID_Col']].unique())
+    threshold = float(parameters.config[mode]['Outlier_MADs_Threshold'])
     data_by_id = {}
     full = []
     cut = []
-    ids = list(data[parameters.config[mode]['Device_ID_Col']].unique())
-    threshold = 3.0
 
     # Iterate through each device in the list of unique devices (e.g., in an array of sensors)
     for device in ids:
