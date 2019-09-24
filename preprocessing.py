@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 from math import sqrt
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler, MinMaxScaler, Normalizer
+from sklearn.preprocessing import StandardScaler, MinMaxScaler
 
 def load_scramble_data(parameters, logger):
     """
@@ -49,7 +49,7 @@ def load_clean_data(parameters, logger, mode='TRAINING_DATA'):
 
     data_options = parameters.config[mode]['Data_Options'].split(',')
     cols_to_standardize = parameters.config[mode]['Cols_To_Standardize'].split(',')
-    cols_to_normalize = parameters.config[mode]['Cols_To_Normalize'].split(',')
+    cols_to_minmaxscale = parameters.config[mode]['Cols_To_MinMaxScale'].split(',')
 
     # Identify device ID column (for, e.g., an array of sensors) from config options;
     # If there is none specified, set it to 'sensor_id' and create a corresponding
@@ -62,10 +62,10 @@ def load_clean_data(parameters, logger, mode='TRAINING_DATA'):
         data = remove_outliers(data, parameters, logger, mode)
 
     # Log/Report warning if input features are being subjected to multiple scaling/normalization functions
-    if ('standardize' in data_options) and ('normalize' in data_options):
-        if set(cols_to_standardize).intersection(set(cols_to_normalize)):
-            logger.warning('Input feature(s) are being both standardized and normalized:')
-            for feat in set(cols_to_standardize).intersection(set(cols_to_normalize)):
+    if ('standardize' in data_options) and ('minmaxscale' in data_options):
+        if set(cols_to_standardize).intersection(set(cols_to_minmaxscale)):
+            logger.warning('Input feature(s) are being subjected to multiple scaling/normalization functions:')
+            for feat in set(cols_to_standardize).intersection(set(cols_to_minmaxscale)):
                 logger.warning(feat)
             logger.warning('')
     
@@ -75,8 +75,8 @@ def load_clean_data(parameters, logger, mode='TRAINING_DATA'):
         if ('standardize' in data_options):  # standardize data based on their device id
             data.loc[idx, :] = standardize_features(grouped_data, cols_to_standardize)
 
-        if ('normalize' in data_options):  # normalize data based on their device id
-            data.loc[idx, :] = normalize_features(grouped_data, cols_to_normalize)
+        if ('minmaxscale' in data_options):  # Scale data to [0, 1] based on their device id
+            data.loc[idx, :] = minmaxscale_features(grouped_data, cols_to_minmaxscale)
 
     return data
 
@@ -96,19 +96,19 @@ def standardize_features(data, columns):
     return data
 
 
-def normalize_features(data, columns):
+def minmaxscale_features(data, columns):
     """
-    Perform normalization on the given columns.
+    Perform Min/Max Scaling on the given columns to map them linearly onto [0, 1].
     
     @params:
         data        - Required  : the data from a single device which may contain remove_outliers (list)
         columns     - Required  : Params object representing model parameters (Params)
     """
 
-    normalizer = MinMaxScaler()
-    normalized_data = normalizer.fit_transform(data[columns])  # return numpy array
+    scaler = MinMaxScaler()
+    scaled_data = scaler.fit_transform(data[columns])  # return numpy array
     for idx, col in enumerate(columns):                        # replace original data
-        data.loc[:, col] = normalized_data[:, idx]
+        data.loc[:, col] = scaled_data[:, idx]
     return data
         
 def remove_outliers(data, parameters, logger, mode):
