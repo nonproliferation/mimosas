@@ -60,6 +60,7 @@ class FeedForwardNN:
     def __init__(self, parameters, path, logger):
         """
         Initialize Feed-Forward Neural Network with correct hyperparameters
+
         @params:
             parameters    - Required  : Parameter object to read config file (Parameter)
             path          - Required  : Path to where log is stored (Str)
@@ -97,10 +98,11 @@ class FeedForwardNN:
 
         return hyperparameters
 
-        
+
     def train(self, X, y):
         """
         Run train mode for Feed-Forward Neural Network
+
         @params:
             X       - Required  : Pandas dataframe containing input data (Dataframe)
             y       - Required  : Pandas dataframe containing label data (Dataframe)
@@ -135,10 +137,11 @@ class FeedForwardNN:
         #     self.logger.info('Feature importance: ' + str(feature_importance))
         self.logger.info('')
 
-        
+
     def test(self, X, y):
         """
         Run test mode for Feed-Forward Neural Network
+
         @params:
             X       - Required  : Pandas dataframe containing input data (Dataframe)
             y       - Required  : Pandas dataframe containing label data (Dataframe)
@@ -148,7 +151,6 @@ class FeedForwardNN:
         # if (self.parameters.config['FEED_FORWARD']['Feature_Selection'] == 'True'):
         #     # X = self.select_features(X, y, mode='Test')
         #     self.select_features(X, y, X, y, scorer=mcc)
-
 
         # Test Score
         self.results['test_score'] = self.results['optimized_model'].score(X, y)
@@ -165,6 +167,7 @@ class FeedForwardNN:
     def permutation_importance(self, estimator, X, y, scorer=mcc, n_rep=5, n_jobs=1):
         """
         Calculate the permutation importance for each input feature to the estimator
+
         @params:
             estimator - Required : Trained model with predict method which estimates y based on X
             X         - Required : Pandas dataframe containing input data (Dataframe)
@@ -201,6 +204,7 @@ class FeedForwardNN:
     def add_candidate_feat(self, X_train, X_eval, y_train, y_eval, constructor_kwargs, scorer=mcc):
         """
         Build, fit, and score a model using a subset of input features plus one candidate features
+
         @params:
             X_train            - Required : Pandas dataframe containing training set input data (Dataframe)
             X_eval             - Required : Pandas dataframe containing test set input data (Dataframe)
@@ -218,10 +222,11 @@ class FeedForwardNN:
 
         return score, cm
 
-            
+
     def recursive_feature_addition(self, X_train, X_eval, y_train, y_eval, scorer=mcc):
         """
         Rank input feature importance using the Recursive Feature Addition algorithm
+
         @params:
             X_train - Required : Pandas dataframe containing training set input data (Dataframe)
             X_eval  - Required : Pandas dataframe containing test set input data (Dataframe)
@@ -325,6 +330,7 @@ class FeedForwardNN:
     def recursive_feature_elimination(self, X_train, X_eval, y_train, y_eval, scorer=mcc):
         """
         Rank input feature importance using the Recursive Feature Elimination algorithm
+
         @params:
             X_train - Required : Pandas dataframe containing training set input data (Dataframe)
             X_eval  - Required : Pandas dataframe containing test set input data (Dataframe)
