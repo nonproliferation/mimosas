@@ -53,6 +53,14 @@ def load_clean_data(parameters, logger, mode='TRAINING_DATA'):
     
     if ('remove_outliers' in data_options):
         data = remove_outliers(data, parameters, logger, mode)
+
+    # Log/Report warning if input features are being subjected to multiple scaling/normalization functions
+    if ('standardize' in data_options) and ('normalize' in data_options):
+        if set(cols_to_standardize).intersection(set(cols_to_normalize)):
+            logger.warning('Input feature(s) are being both standardized and normalized:')
+            for feat in set(cols_to_standardize).intersection(set(cols_to_normalize)):
+                logger.warning(feat)
+            logger.warning('')
     
     for idx in data.groupby(['id']).groups.values():
         grouped_data = data.loc[idx]
