@@ -45,14 +45,14 @@ def load_clean_data(parameters, logger, mode='TRAINING_DATA'):
         data = weather_correction(os.path.join(parameters.main_path, parameters.config[mode]['Data']), os.path.join(parameters.main_path, parameters.config['TRAINING_DATA']['Weather_Correction']))
     
     data.loc[:, 'utc-time'] = pd.to_datetime(data['time'], unit='s', utc=True)  # convert unix epoch time to utc
-    data.loc[:, 'temp'] = data['temp'] / 100  # convert temperature to floating point
+    # data.loc[:, 'temp'] = data['temp'] / 100  # convert temperature to floating point
     
     data_options = parameters.config[mode]['Data_Options'].split(',')
     cols_to_standardize = parameters.config[mode]['Cols_To_Standardize'].split(',')
     cols_to_normalize = parameters.config[mode]['Cols_To_Normalize'].split(',')
     
     if ('remove_outliers' in data_options):
-        data = remove_outliers(data, parameters, logger)
+        data = remove_outliers(data, parameters, logger, mode)
     
     for idx in data.groupby(['id']).groups.values():
         grouped_data = data.loc[idx]
@@ -67,13 +67,13 @@ def load_clean_data(parameters, logger, mode='TRAINING_DATA'):
 
 def standardize_features(data, columns):
     """
-    Perform standardization on the given columns.
+    Standardize data in the specified columns to have zero mean and unit variance.
     
     @params:
         data        - Required  : the data from a single device which may contain remove_outliers (list)
         columns     - Required  : Params object representing model parameters (Params)
     """
-#     print(data)
+
     scaler = StandardScaler()
     standardized_data = scaler.fit_transform(data[columns])  # return numpy array
     for idx, col in enumerate(columns):                      # replace original data
@@ -95,7 +95,7 @@ def normalize_features(data, columns):
         data.loc[:, col] = normalized_data[:, idx]
     return data
         
-def remove_outliers(data, parameters, logger):
+def remove_outliers(data, parameters, logger, mode):
     """
     Remove outlier data likely to correspond to experimenter perturbation.
           
@@ -106,7 +106,7 @@ def remove_outliers(data, parameters, logger):
     
     device_col = 'id'
     use_magnitudes = False
-    cols_to_cull_on = ['acc_x', 'acc_y', 'acc_z']
+    cols_to_cull_on = parameters.config[mode]['Remove_Outlier_Cols'].split(',')
 
     # Initialize local variables
     data_by_id = {}
@@ -157,7 +157,7 @@ def remove_outliers(data, parameters, logger):
 
             # Remove the data corresponding to outlier values in each feature in
             # 'cull_on' from the by-ID dict
-            for prod in cull_on:
+            for prod in cols_to_cull_on:
                 data_by_id[device] = data_by_id[device][
                     (data_by_id[device][prod] >= lower_cut[prod]) &
                     (data_by_id[device][prod] <= upper_cut[prod])
