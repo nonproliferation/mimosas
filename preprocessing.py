@@ -39,17 +39,23 @@ def load_clean_data(parameters, logger, mode='TRAINING_DATA'):
         logger        - Required  : Logger object for logging to console and file (Logger)
         mode          - Optional  : Pull data from different locations in config file (Str)
     """
+
     if (not os.path.exists(os.path.join(parameters.main_path, parameters.config[mode]['Weather_Correction']))):
         data = pd.read_csv(os.path.join(parameters.main_path, parameters.config[mode]['Data']))
     else:
         data = weather_correction(os.path.join(parameters.main_path, parameters.config[mode]['Data']), os.path.join(parameters.main_path, parameters.config['TRAINING_DATA']['Weather_Correction']))
-    
+
     data.loc[:, 'utc-time'] = pd.to_datetime(data['time'], unit='s', utc=True)  # convert unix epoch time to utc
-    # data.loc[:, 'temp'] = data['temp'] / 100  # convert temperature to floating point
-    
+
     data_options = parameters.config[mode]['Data_Options'].split(',')
     cols_to_standardize = parameters.config[mode]['Cols_To_Standardize'].split(',')
     cols_to_normalize = parameters.config[mode]['Cols_To_Normalize'].split(',')
+
+    # Identify device ID column (for, e.g., an array of sensors) from config options;
+    # If there is none specified, create a column called 'id' where all entries are 1.
+    id_col = parameters.config[mode]['Device_ID_Col']
+    if not id_col:
+        data.loc[:, 'id'] = 1
     
     if ('remove_outliers' in data_options):
         data = remove_outliers(data, parameters, logger, mode)
@@ -97,6 +103,7 @@ def normalize_features(data, columns):
         data        - Required  : the data from a single device which may contain remove_outliers (list)
         columns     - Required  : Params object representing model parameters (Params)
     """
+
     normalizer = MinMaxScaler()
     normalized_data = normalizer.fit_transform(data[columns])  # return numpy array
     for idx, col in enumerate(columns):                        # replace original data
@@ -111,73 +118,40 @@ def remove_outliers(data, parameters, logger, mode):
         data        - Required  : the data from a single device which may contain remove_outliers (list)
         columns     - Required  : Params object representing model parameters (Params)
     """
-    
-    device_col = 'id'
-    use_magnitudes = False
-    cols_to_cull_on = parameters.config[mode]['Remove_Outlier_Cols'].split(',')
 
     # Initialize local variables
+    device_col = parameters.config[mode]['Device_ID_Col']
+    cols_to_cull_on = parameters.config[mode]['Remove_Outlier_Cols'].split(',')
     data_by_id = {}
     full = []
     cut = []
     ids = list(data[device_col].unique())
     threshold = 3.0
 
+    # Iterate through each device in the list of unique devices (e.g., in an array of sensors)
     for device in ids:
         data_by_id[device] = data[data[device_col] == device]
 
-        # Append number of raw BLOBs for the device to 'full'
+        # Append number of raw events for the device to 'full'
         full.append(float(len(data_by_id[device].index)))
 
-        # If we want to cull on outliers in accelerometer data only, use the
-        # magnitude of the acceleration vector instead of its components. If
-        # the accelerometer data have already been converted to magnitudes:
-        if cols_to_cull_on == ['acc_x', 'acc_y', 'acc_z'] and use_magnitudes:
-            
-            # Magnitude of the accerometer measurements, expressed in Mean Average
-            # Deviations (MADs) about the mean.
-            acc = (data_by_id[device]['acc'] - data_by_id[device]['acc'].mean()) / data_by_id[device]['acc'].mad()
+        # Outlier culling thresholds at +/- (threshold) MADs
+        lower_cut = (data_by_id[device].mean() - threshold*data_by_id[device].mad())
+        upper_cut = (data_by_id[device].mean() + threshold*data_by_id[device].mad())
 
-            # Keep data within culling thresholds
-            data_by_id[device] = data_by_id[device].loc[acc[(acc > -1.0*threshold) & (acc < 1.0*threshold)].index]
+        # Remove the data corresponding to outlier values in each feature in
+        # 'cols_to_cull_on' from the by-ID dict
+        for prod in cols_to_cull_on:
+            data_by_id[device] = data_by_id[device][
+                (data_by_id[device][prod] >= lower_cut[prod]) &
+                (data_by_id[device][prod] <= upper_cut[prod])
+                ]
 
-        # If the to-magnitude conversion was not previously performed, but we
-        # use accelerometer-only values to cull:
-        elif cols_to_cull_on == ['acc_x', 'acc_y', 'acc_z'] and not use_magnitudes:
-
-            # Magnitude of the accerometer measurements, expressed in Mean Average
-            # Deviations (MADs) about the mean.
-            acc = (data_by_id[device]['acc_x']**2 + data_by_id[device]['acc_y']**2 + data_by_id[device]['acc_z']**2).apply(sqrt)
-            acc = (acc - acc.mean()) / acc.mad()
-
-            # Keep data within culling thresholds
-            data_by_id[device] = data_by_id[device].loc[acc[(acc > -1.0*threshold) & (acc < 1.0*threshold)].index]
-
-        # If we cull on non-accelerometer values
-        else:
-            # Outlier culling thresholds at +/- (threshold) MADs
-            lower_cut = (
-                data_by_id[device].mean() - threshold*data_by_id[device].mad()
-                )
-            upper_cut = (
-                data_by_id[device].mean() + threshold*data_by_id[device].mad()
-                )
-
-            # Remove the data corresponding to outlier values in each feature in
-            # 'cull_on' from the by-ID dict
-            for prod in cols_to_cull_on:
-                data_by_id[device] = data_by_id[device][
-                    (data_by_id[device][prod] >= lower_cut[prod]) &
-                    (data_by_id[device][prod] <= upper_cut[prod])
-                    ]
-
-        # Append number of BLOBs remaining in the device's data post-cleaning
+        # Append number of events remaining in the device's data post-cleaning
         cut.append(float(len(data_by_id[device].index)))
 
     # Concatenate by-device DataFrames back into a single DataFrame
-    data_cleaned = pd.concat(
-        [data_by_id[device] for device in data_by_id.keys()]
-        )
+    data_cleaned = pd.concat([data_by_id[device] for device in data_by_id.keys()])
 
     # Restore chronological indexing to match input data
     data = data_cleaned.sort_values(by=['time']).reset_index()
@@ -189,7 +163,7 @@ def remove_outliers(data, parameters, logger, mode):
         logger.info('{} data points after cleaning'.format(int(sum(cut))))
         logger.info('The fraction of each device\'s events removed by cleaning is:')
         for i in range(len(full)):
-            logger.info('ID {:5d}: {:0.4f}'.format(ids[i], (1.0 - cut[i]/full[i])))
+            logger.info('ID {}: {:0.4f}'.format(str(ids[i]).rjust(max(list(map(len, map(str, ids))))), (1.0 - cut[i]/full[i])))
         logger.info('')
 
     # Return data without outliers
@@ -203,8 +177,11 @@ def weather_correction(data_path, weather_correction_path):
         data_path                 - Required  : Path to data (Str)
         weather_correctin_path    - Required  : Path to weather correction (Str)
     """
+
     weather_data = pd.read_csv(weather_correction_path)
     measured_data = pd.read_csv(data_path)
+
+    measured_data.loc[:, 'temp'] = measured_data['temp'] / 100  # convert temperature to floating point
     
     weather_data['LocalPressure'] = pd.Series(weather_data['LocalPressure']*100)  # convert weather pressures in hPa to Pa
     weather_data['Temp'] = pd.Series((weather_data['Temp'] - 273.15)*100) # convert weather temps in K to degrees C*100
@@ -226,6 +203,7 @@ def weather_helper(measured_data, m_v, weather_data, w_v):
         weather_data    - Required  : Pandas dataframe containing data and time (Dataframe)
         w_v             - Required  : Weather values column of pandas dataframe (Str)
     """
+
     measured_times = pd.Series(measured_data['time'])
     weather_times = pd.Series(weather_data['Date'])
 
