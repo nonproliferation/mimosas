@@ -52,10 +52,11 @@ def load_clean_data(parameters, logger, mode='TRAINING_DATA'):
     cols_to_normalize = parameters.config[mode]['Cols_To_Normalize'].split(',')
 
     # Identify device ID column (for, e.g., an array of sensors) from config options;
-    # If there is none specified, create a column called 'id' where all entries are 1.
-    id_col = parameters.config[mode]['Device_ID_Col']
-    if not id_col:
-        data.loc[:, 'id'] = 1
+    # If there is none specified, set it to 'sensor_id' and create a corresponding
+    # column in the data where all entries are 1.
+    if not parameters.config[mode]['Device_ID_Col']:
+        parameters.config[mode]['Device_ID_Col'] = 'sensor_id'
+        data.loc[:, 'sensor_id'] = 1
     
     if ('remove_outliers' in data_options):
         data = remove_outliers(data, parameters, logger, mode)
@@ -68,7 +69,7 @@ def load_clean_data(parameters, logger, mode='TRAINING_DATA'):
                 logger.warning(feat)
             logger.warning('')
     
-    for idx in data.groupby(['id']).groups.values():
+    for idx in data.groupby([parameters.config[mode]['Device_ID_Col']]).groups.values():
         grouped_data = data.loc[idx]
 
         if ('standardize' in data_options):  # standardize data based on their device id
@@ -120,17 +121,16 @@ def remove_outliers(data, parameters, logger, mode):
     """
 
     # Initialize local variables
-    device_col = parameters.config[mode]['Device_ID_Col']
     cols_to_cull_on = parameters.config[mode]['Remove_Outlier_Cols'].split(',')
     data_by_id = {}
     full = []
     cut = []
-    ids = list(data[device_col].unique())
+    ids = list(data[parameters.config[mode]['Device_ID_Col']].unique())
     threshold = 3.0
 
     # Iterate through each device in the list of unique devices (e.g., in an array of sensors)
     for device in ids:
-        data_by_id[device] = data[data[device_col] == device]
+        data_by_id[device] = data[data[parameters.config[mode]['Device_ID_Col']] == device]
 
         # Append number of raw events for the device to 'full'
         full.append(float(len(data_by_id[device].index)))
