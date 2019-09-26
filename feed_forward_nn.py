@@ -1,14 +1,15 @@
+import os
+import json
+import ast
+import pickle
+
+import numpy as np
+import pandas as pd
+
 from sklearn.metrics import matthews_corrcoef as mcc
 from sklearn.metrics import confusion_matrix, r2_score, make_scorer
 from sklearn.model_selection import GridSearchCV
 from sklearn.feature_selection import RFE
-
-import numpy as np
-import pandas as pd
-import pickle
-import os
-import json
-import ast
 
 import keras
 from keras.models import Sequential
@@ -25,7 +26,9 @@ os.environ['KMP_AFFINITY'] = 'disabled'
 
 # Create function returning a compiled network
 def construct_network(layers=[8, 4], activation='elu', dropout_rate=0.0, n_features=11, optimizer='adam', loss='categorical_crossentropy', lr=0.001):
-    """Standalone constructor function for the Feed-Forward Neural Network"""
+    """
+    Standalone constructor function for the Feed-Forward Neural Network
+    """
 
     # Start neural network
     network = Sequential()
@@ -80,9 +83,10 @@ class FeedForwardNN:
         # Dict to store results
         self.results = {}
 
-
     def hyperparameter_space(self):
-        """Creates dict with (hyperparameter, values_in_config_file) as (keys, values)"""
+        """
+        Creates dict with (hyperparameter, values_in_config_file) as (keys, values)
+        """
 
         hyperparameters = dict(
             n_features=[len(self.parameters.config['TRAINING_DATA']['Cols_To_Use'].split(','))],
@@ -98,7 +102,6 @@ class FeedForwardNN:
 
         return hyperparameters
 
-
     def train(self, X, y):
         """
         Run train mode for Feed-Forward Neural Network
@@ -107,6 +110,7 @@ class FeedForwardNN:
             X       - Required  : Pandas dataframe containing input data (Dataframe)
             y       - Required  : Pandas dataframe containing label data (Dataframe)
         """
+
         self.logger.info('Training Feed-Forward Neural Network')
         self.logger.info('')
 
@@ -137,7 +141,6 @@ class FeedForwardNN:
         #     self.logger.info('Feature importance: ' + str(feature_importance))
         self.logger.info('')
 
-
     def test(self, X, y):
         """
         Run test mode for Feed-Forward Neural Network
@@ -146,6 +149,7 @@ class FeedForwardNN:
             X       - Required  : Pandas dataframe containing input data (Dataframe)
             y       - Required  : Pandas dataframe containing label data (Dataframe)
         """
+
         self.logger.info('Testing Feed-Forward Neural Network')
         self.logger.info('')
         # if (self.parameters.config['FEED_FORWARD']['Feature_Selection'] == 'True'):
@@ -162,7 +166,6 @@ class FeedForwardNN:
         self.results['test_confusion_matrix'] = confusion_matrix(y, self.results['optimized_model'].predict(X))
         self.logger.info('Test confusion matrix: ' + str(self.results['test_confusion_matrix']).replace('\n', ' ').replace('\r', ''))
         self.logger.info('')
-
 
     def permutation_importance(self, estimator, X, y, scorer=mcc, n_rep=5, n_jobs=1):
         """
@@ -184,7 +187,8 @@ class FeedForwardNN:
         perm_imps['permuted_feature'] = list(X.columns.values) + ['none']
         perm_imps.set_index('permuted_feature', inplace=True)
 
-        # Iterate value permutation and model evaluation through each feature
+        # Iterate model evaluation through permutation of each feature
+        # (including no permuted features)
         for feat in perm_imps.index:
 
             # Copy test set inputs, then permute values of a single column
@@ -201,16 +205,15 @@ class FeedForwardNN:
 
         return perm_imps
 
-
-    def add_candidate_feat(self, X_train, X_eval, y_train, y_eval, constructor_kwargs, scorer=mcc):
+    def add_candidate_feat(self, X_train, X_test, y_train, y_test, constructor_kwargs, scorer=mcc):
         """
         Build, fit, and score a model using a subset of input features plus one candidate features
 
         @params:
             X_train            - Required : Pandas dataframe containing training set input data (Dataframe)
-            X_eval             - Required : Pandas dataframe containing test set input data (Dataframe)
+            X_test             - Required : Pandas dataframe containing test set input data (Dataframe)
             y_train            - Required : Pandas dataframe containing training set labels (Dataframe)
-            y_eval             - Required : Pandas dataframe containing test set labels (Dataframe)
+            y_test             - Required : Pandas dataframe containing test set labels (Dataframe)
             constructor_kwargs - Required : kwargs parameterizing for the model constructor function, except for n_features
             scorer             - Optional : Metric which accepts true and predicted labels as inputs; used to score model
         """
@@ -218,21 +221,20 @@ class FeedForwardNN:
         # Create compatibility-wrapped model with dim(X_train) input features, then fit and score it
         model = KerasClassifier(build_fn=construct_network, n_features=len(X_train.columns.values), **constructor_kwargs)
         model.fit(X_train, y_train)
-        score = scorer(y_eval, model.predict(X_eval))
-        cm = confusion_matrix(y_eval, model.predict(X_eval))
+        score = scorer(y_test, model.predict(X_test))
+        cm = confusion_matrix(y_test, model.predict(X_test))
 
         return score, cm
 
-
-    def recursive_feature_addition(self, X_train, X_eval, y_train, y_eval, scorer=mcc):
+    def recursive_feature_addition(self, X_train, X_test, y_train, y_test, scorer=mcc):
         """
         Rank input feature importance using the Recursive Feature Addition algorithm
 
         @params:
             X_train - Required : Pandas dataframe containing training set input data (Dataframe)
-            X_eval  - Required : Pandas dataframe containing test set input data (Dataframe)
+            X_test  - Required : Pandas dataframe containing test set input data (Dataframe)
             y_train - Required : Pandas dataframe containing training set labels (Dataframe)
-            y_eval  - Required : Pandas dataframe containing test set labels (Dataframe)
+            y_test  - Required : Pandas dataframe containing test set labels (Dataframe)
             scorer  - Optional : Metric which accepts true and predicted labels as inputs; used to score models
         """
 
@@ -278,9 +280,9 @@ class FeedForwardNN:
                 # Build, fit, and score model using incorporated features plus the current candidate feature
                 score, cm = self.add_candidate_feat(
                     X_train=X_train[used_feats + [feat]],
-                    X_eval=X_eval[used_feats + [feat]],
+                    X_test=X_test[used_feats + [feat]],
                     y_train=y_train,
-                    y_eval=y_eval,
+                    y_test=y_test,
                     constructor_kwargs=param_dict,
                     scorer=scorer
                 )
@@ -327,16 +329,15 @@ class FeedForwardNN:
 
         return self.results['recursive_feature_addition']
 
-
-    def recursive_feature_elimination(self, X_train, X_eval, y_train, y_eval, scorer=mcc):
+    def recursive_feature_elimination(self, X_train, X_test, y_train, y_test, scorer=mcc):
         """
         Rank input feature importance using the Recursive Feature Elimination algorithm
 
         @params:
             X_train - Required : Pandas dataframe containing training set input data (Dataframe)
-            X_eval  - Required : Pandas dataframe containing test set input data (Dataframe)
+            X_test  - Required : Pandas dataframe containing test set input data (Dataframe)
             y_train - Required : Pandas dataframe containing training set labels (Dataframe)
-            y_eval  - Required : Pandas dataframe containing test set labels (Dataframe)
+            y_test  - Required : Pandas dataframe containing test set labels (Dataframe)
             scorer  - Optional : Metric which accepts true and predicted labels as inputs; used to score models
         """
 
@@ -370,7 +371,7 @@ class FeedForwardNN:
 
             # Training and Evaluation sets with partially-reduced feature set
             X_train_reduced = X_train.copy()[used_feats]
-            X_eval_reduced = X_eval.copy()[used_feats]
+            X_test_reduced = X_test.copy()[used_feats]
 
             # Clear keras session variables
             keras.backend.clear_session()
@@ -381,7 +382,7 @@ class FeedForwardNN:
 
             # Calculate permutation importance for the input features and sort by score (highest to lowest)
             # of the model when it is used to predict with the data from the index feature shuffled
-            perm_imps = self.permutation_importance(estimator=rfe_model, X=X_eval_reduced, y=y_eval, scorer=mcc, n_rep=5, n_jobs=1)
+            perm_imps = self.permutation_importance(estimator=rfe_model, X=X_test_reduced, y=y_test, scorer=mcc, n_rep=5, n_jobs=1)
             perm_imps = perm_imps.sort_values(by=['score ({})'.format(scorer.__name__)], ascending=False)
 
             # Log/report permutation importance scores for the partially-reduced feature set
@@ -431,23 +432,23 @@ class FeedForwardNN:
 
         return self.results['recursive_feature_elimination']
 
-
     def save_model(self):
         """
         Save model pickle
         """
+
         self.logger.info('Saving Model')
         self.logger.info('')
         pickle.dump(self.results['optimized_model'], open(self.path + 'model.pkl', 'wb'))
 
- 
     def load_model(self, path):
         """
-        Load model - called for evaluation mode
+        Load model - called for test mode
         
         @params:
             path          - Required  : Path to where model is stored (Str)
         """
+
         # load the model from disk
         self.logger.info('Loading Model')
         self.logger.info('')

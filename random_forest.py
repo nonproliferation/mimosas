@@ -1,9 +1,12 @@
+import pickle
+
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import matthews_corrcoef as mcc
 from sklearn.metrics import make_scorer
+from sklearn.metrics import confusion_matrix
+from sklearn.metrics import r2_score
 from sklearn.model_selection import GridSearchCV
-from sklearn.metrics import confusion_matrix, r2_score
-import pickle
+
 
 ## Random Forest algorithm
 class RandomForest:
@@ -18,7 +21,7 @@ class RandomForest:
         """
         ## Logger used to log to console and log file
         self.logger = logger
-        
+
         # Random Forest Hyperparameters
         n_estimators = list(map(int, parameters.config['RANDOM_FOREST']['N_Estimators'].split(',')))
         max_depth = list(map(int, parameters.config['RANDOM_FOREST']['Depths'].split(',')))
@@ -39,7 +42,7 @@ class RandomForest:
         self.logger.info('Initializing Random Forest')
         self.logger.info('Using Classifier Criterion: ' + parameters.config['RANDOM_FOREST']['Classifier_Criterion'])
         self.logger.info('')
-        
+
     def train(self, X, y):
         """
         Run train mode for Random Forest
@@ -48,11 +51,12 @@ class RandomForest:
             X       - Required  : Pandas dataframe containing input data (Dataframe)
             y       - Required  : Pandas dataframe containing label data (Dataframe)
         """
+
         self.logger.info('Training Random Forest')
         self.logger.info('')
         if (self.parameters.config['RANDOM_FOREST']['Feature_Selection'] == 'True'):
             X = self.select_features(X, y, 'Train')
-        
+
         self.model.fit(X, y)
         self.results['best_params'] = self.model.best_params_  # parameter setting that gave the best results on the hold out data.
         self.results['best_cv_score'] = self.model.best_score_  # mean cross-validated score of the best_estimator
@@ -69,7 +73,7 @@ class RandomForest:
         for feature_importance in self.results['feature_importances']:
             self.logger.info('Feature importance: ' + str(feature_importance))
         self.logger.info('')
-        
+
     def test(self, X, y):
         """
         Run test mode for Random Forest
@@ -78,6 +82,7 @@ class RandomForest:
             X       - Required  : Pandas dataframe containing input data (Dataframe)
             y       - Required  : Pandas dataframe containing label data (Dataframe)
         """
+
         self.logger.info('Testing Random Forest')
         self.logger.info('')
         if (self.parameters.config['RANDOM_FOREST']['Feature_Selection'] == 'True'):
@@ -89,7 +94,7 @@ class RandomForest:
         self.logger.info('Test score: ' + str(self.results['test_score']))
         self.logger.info('Test confusion matrix: ' + str(self.results['test_confusion_matrix']).replace('\n', ' ').replace('\r', ''))
         self.logger.info('')
-            
+
     def select_features(self, X, y, mode):
         """
         Feature selection function - returns top n features if indicated in config file. Only runs in 'Train' mode
@@ -99,6 +104,7 @@ class RandomForest:
             y       - Required  : Pandas dataframe containing label data (Dataframe)
             mode    - Required  : Selection mode (Str)
         """
+
         if (mode == 'Train'):
             temp_model = self.estimator.fit(X, y)
             cols_to_use = self.parameters.config['TRAINING_DATA']['Cols_To_Use'].split(',')
@@ -114,19 +120,20 @@ class RandomForest:
         """
         Save model pickle
         """
+
         self.logger.info('Saving Model')
         self.logger.info('')
         pickle.dump(self.model, open(self.path + 'model.pkl', 'wb'))
- 
+
     def load_model(self, path):
         """
-        Load model - called for evaluation mode
+        Load model - called for test mode
         
         @params:
             path          - Required  : Path to where model is stored (Str)
         """
+
         # load the model from disk
         self.logger.info('Loading Model')
         self.logger.info('')
         self.model = pickle.load(open(path, 'rb'))
-        

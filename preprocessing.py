@@ -1,10 +1,12 @@
 import os
 import ast
+from math import sqrt
+
 import pandas as pd
 import numpy as np
-from math import sqrt
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
+
 
 def load_scramble_data(parameters, logger):
     """
@@ -14,22 +16,24 @@ def load_scramble_data(parameters, logger):
         parameters   - Required  : Parameter object to read config settings (Parameter)
         logger       - Required  : Logger object for logging to console and file (Logger)
     """
-    logger.info('Preparing training data')
+
+    logger.info('Preparing training/validation set data')
     logger.info('')
     train_data = load_clean_data(parameters, logger, 'TRAINING_DATA')
-    logger.info('Preparing evaluation / test data')
+    logger.info('Preparing test set data')
     logger.info('')
-    eval_data = load_clean_data(parameters, logger, 'EVALUATION_DATA')
+    test_data = load_clean_data(parameters, logger, 'TEST_DATA')
     
     train_cols_to_use = parameters.config['TRAINING_DATA']['Cols_To_Use'].split(',')
-    eval_cols_to_use = parameters.config['EVALUATION_DATA']['Cols_To_Use'].split(',')
+    test_cols_to_use = parameters.config['TEST_DATA']['Cols_To_Use'].split(',')
     train_label_col = parameters.config['TRAINING_DATA']['Label_Col']
-    eval_label_col = parameters.config['EVALUATION_DATA']['Label_Col']
+    test_label_col = parameters.config['TEST_DATA']['Label_Col']
     
-    X_train, X_eval_discard, y_train, y_eval_discard = train_test_split(train_data[train_cols_to_use], train_data[train_label_col], stratify=train_data[train_label_col], test_size=(1 - float(parameters.config['TRAINING_DATA']['Split_Fraction'])), random_state=int(parameters.config['TRAINING_DATA']['Split_Seed']))
-    X_train_discard, X_eval, y_train_discard, y_eval = train_test_split(eval_data[eval_cols_to_use], eval_data[eval_label_col], stratify=eval_data[eval_label_col], test_size=float(parameters.config['EVALUATION_DATA']['Split_Fraction']), random_state=int(parameters.config['EVALUATION_DATA']['Split_Seed']))
+    X_train, X_test_discard, y_train, y_test_discard = train_test_split(train_data[train_cols_to_use], train_data[train_label_col], stratify=train_data[train_label_col], test_size=(1 - float(parameters.config['TRAINING_DATA']['Split_Fraction'])), random_state=int(parameters.config['TRAINING_DATA']['Split_Seed']))
+    X_train_discard, X_test, y_train_discard, y_test = train_test_split(test_data[test_cols_to_use], test_data[test_label_col], stratify=test_data[test_label_col], test_size=float(parameters.config['TEST_DATA']['Split_Fraction']), random_state=int(parameters.config['TEST_DATA']['Split_Seed']))
     
-    return X_train, X_eval, y_train, y_eval
+    return X_train, X_test, y_train, y_test
+
 
 def load_clean_data(parameters, logger, mode='TRAINING_DATA'):
     """
@@ -81,6 +85,7 @@ def load_clean_data(parameters, logger, mode='TRAINING_DATA'):
 
     return data
 
+
 def standardize_features(data, columns):
     """
     Standardize data in the specified columns to have zero mean and unit variance.
@@ -111,7 +116,8 @@ def minmaxscale_features(data, columns):
     for idx, col in enumerate(columns):                        # replace original data
         data.loc[:, col] = scaled_data[:, idx]
     return data
-        
+
+
 def remove_outliers(data, parameters, logger, mode):
     """
     Remove outlier data likely to correspond to experimenter perturbation.

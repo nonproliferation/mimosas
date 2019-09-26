@@ -1,21 +1,27 @@
+import os
+import sys
+import logging
+import datetime
+import warnings
+from shutil import copyfile
+
+import numpy as np
+
+from preprocessing import load_scramble_data
 from parameter_parser import Parameters
 from decision_tree import DecisionTree
 from random_forest import RandomForest
 from feed_forward_nn import FeedForwardNN
-import os, sys
-import logging
-import datetime
-from shutil import copyfile
-import warnings
-from preprocessing import load_scramble_data
-import numpy as np
 
+
+# Mute CPU- and OS-specific warnings from TensorFlow backend of FeedForwardNN
 os.environ['KMP_WARNINGS'] = 'off'
 os.environ['KMP_AFFINITY'] = 'disabled'
 
 # Header detailing version that's printed out at the beginning of each run and at the top of each log file
 header = ['Multi-Modal Analysis Suite (MMAS) v1.0.0-release.1', 'Copyright (C) 2019 University of California, Berkeley', 'https://complexity.berkeley.edu/mimosas/']
-            
+
+
 def start_logger(path):
     """
     Start and return a new logger. Add console and file outputs.
@@ -23,6 +29,7 @@ def start_logger(path):
     @params:
         path   - Required  : path to desired file output of logger (Str)
     """
+
     # Create new logger
     logger = logging.getLogger(path)
     logger.setLevel(logging.DEBUG)
@@ -43,8 +50,9 @@ def start_logger(path):
     # Add output options to logger
     logger.addHandler(file_handler)
     logger.addHandler(stream_handler)
-    
+
     return logger
+
 
 def stop_logger(logger):
     """
@@ -53,15 +61,18 @@ def stop_logger(logger):
     @params:
         logger    - Required  : logger object to be stopped (Logger)
     """
+
     for handler in logger.handlers:
         logger.removeHandler(handler)
         del handler
     del logger
 
+
 def main(main_path):
     """
-    Parse command line arguments and run either evaluation or training mode
+    Parse command line arguments and run either train or test mode
     """
+
     # Output program header
     with open('mimosas.txt', 'r') as f:
         contents = f.read()
@@ -81,15 +92,16 @@ def main(main_path):
         run_random_forest(parameters)
     if ('FEED_FORWARD' in parameters.config.sections()):
         run_feed_forward_nn(parameters)
-        
-        
+
+
 def run_decision_tree(parameters):
     """
     Run decision tree - including train, test, validation if applicable as indicated in the config file
-    
+
     @params:
         parameters   - Required  : parameter object containing parameters loaded from config file (Parameter)
     """
+
     # Generate session folder
     session = datetime.datetime.utcnow().strftime('%Y_%b_%d_%Hh_%Mm_%Ss')
     path = './saved_models/decision_tree/' + session + '/'
@@ -109,17 +121,18 @@ def run_decision_tree(parameters):
     logger.info('Running Decision Tree')
     logger.info('')
     model = DecisionTree(parameters, path, logger)
-    X_train, X_eval, y_train, y_eval = load_scramble_data(parameters, logger)
+    X_train, X_test, y_train, y_test = load_scramble_data(parameters, logger)
     if (parameters.config['DECISION_TREE']['Load_Model_Path']):
         model.load_model(arameters.config['DECISION_TREE']['Load_Model_Path'])
     model.train(X_train, y_train)
-    model.test(X_eval, y_eval)
+    model.test(X_test, y_test)
     model.save_model()
     logger.info('DONE')
     logger.info('')
     logger.info('')
     stop_logger(logger)
-    
+
+
 def run_random_forest(parameters):
     """
     Run random forest - including train, test, validation if applicable as indicated in the config file
@@ -127,6 +140,7 @@ def run_random_forest(parameters):
     @params:
         parameters   - Required  : parameter object containing parameters loaded from config file (Parameter)
     """
+
     # Generate session folder
     session = datetime.datetime.utcnow().strftime('%Y_%b_%d_%Hh_%Mm_%Ss')
     path = './saved_models/random_forest/' + session + '/'
@@ -146,16 +160,17 @@ def run_random_forest(parameters):
     logger.info('Running Random Forest')
     logger.info('')
     model = RandomForest(parameters, path, logger)
-    X_train, X_eval, y_train, y_eval = load_scramble_data(parameters, logger)
+    X_train, X_test, y_train, y_test = load_scramble_data(parameters, logger)
     if (parameters.config['RANDOM_FOREST']['Load_Model_Path']):
         model.load_model(arameters.config['RANDOM_FOREST']['Load_Model_Path'])
     model.train(X_train, y_train)
-    model.test(X_eval, y_eval)
+    model.test(X_test, y_test)
     model.save_model()
     logger.info('DONE')
     logger.info('')
     logger.info('')
     stop_logger(logger)
+
 
 def run_feed_forward_nn(parameters):
     """
@@ -164,6 +179,7 @@ def run_feed_forward_nn(parameters):
     @params:
         parameters   - Required  : parameter object containing parameters loaded from config file (Parameter)
     """
+
     # Generate session folder
     session = datetime.datetime.utcnow().strftime('%Y_%b_%d_%Hh_%Mm_%Ss')
     path = './saved_models/feed_forward_nn/' + session + '/'
@@ -185,13 +201,13 @@ def run_feed_forward_nn(parameters):
     model = FeedForwardNN(parameters, path, logger)
 
     # Load data
-    X_train, X_eval, y_train, y_eval = load_scramble_data(parameters, logger)
+    X_train, X_test, y_train, y_test = load_scramble_data(parameters, logger)
 
     if (parameters.config['FEED_FORWARD']['Load_Model_Path']):
         model.load_model(parameters.config['FEED_FORWARD']['Load_Model_Path'])
 
         print(model.results['optimized_model'].get_params())
-        model.test(X_eval, y_eval)
+        model.test(X_test, y_test)
         logger.info('DONE')
         logger.info('')
         logger.info('')
@@ -199,12 +215,14 @@ def run_feed_forward_nn(parameters):
         exit()
 
     model.train(X_train, y_train)
-    model.test(X_eval, y_eval)
+    model.test(X_test, y_test)
     model.save_model()
 
+    # If feature selection is indicated in the CONFIG file, use the RFA and RFE
+    # algorithms to quantify model performance as a function of input feature set
     if (parameters.config['FEED_FORWARD']['Feature_Selection'] == 'True'):
-        model.recursive_feature_addition(X_train, X_eval, y_train, y_eval)
-        model.recursive_feature_elimination(X_train, X_eval, y_train, y_eval)
+        model.recursive_feature_addition(X_train, X_test, y_train, y_test)
+        model.recursive_feature_elimination(X_train, X_test, y_train, y_test)
 
     logger.info('DONE')
     logger.info('')
@@ -215,6 +233,6 @@ def run_feed_forward_nn(parameters):
 if __name__ == '__main__':
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-    
+
         main_path = os.path.dirname(sys.argv[0]);
         main(main_path)
