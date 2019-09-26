@@ -17,6 +17,10 @@ def load_scramble_data(parameters, logger):
         logger       - Required  : Logger object for logging to console and file (Logger)
     """
 
+    # Check data configuration options for some potential pitfalls; raise warnings correspondingly.
+    data_warnings(parameters, logger)
+
+    # Load data for training/validation set and for test set
     logger.info('Preparing training/validation set data')
     logger.info('')
     train_data = load_clean_data(parameters, logger, 'TRAINING_DATA')
@@ -24,11 +28,13 @@ def load_scramble_data(parameters, logger):
     logger.info('')
     test_data = load_clean_data(parameters, logger, 'TEST_DATA')
     
+    # Parse column headers for input features and labels from CONFIG
     train_cols_to_use = parameters.config['TRAINING_DATA']['Cols_To_Use'].split(',')
     test_cols_to_use = parameters.config['TEST_DATA']['Cols_To_Use'].split(',')
     train_label_col = parameters.config['TRAINING_DATA']['Label_Col']
     test_label_col = parameters.config['TEST_DATA']['Label_Col']
     
+    # Create train/test splits for data. Separate calls allow for drawing from different datasets
     X_train, X_test_discard, y_train, y_test_discard = train_test_split(train_data[train_cols_to_use], train_data[train_label_col], stratify=train_data[train_label_col], test_size=(1 - float(parameters.config['TRAINING_DATA']['Split_Fraction'])), random_state=int(parameters.config['TRAINING_DATA']['Split_Seed']))
     X_train_discard, X_test, y_train_discard, y_test = train_test_split(test_data[test_cols_to_use], test_data[test_label_col], stratify=test_data[test_label_col], test_size=float(parameters.config['TEST_DATA']['Split_Fraction']), random_state=int(parameters.config['TEST_DATA']['Split_Seed']))
     
@@ -65,14 +71,6 @@ def load_clean_data(parameters, logger, mode='TRAINING_DATA'):
     
     if ('remove_outliers' in data_options):
         data = remove_outliers(data, parameters, logger, mode)
-
-    # Log/Report warning if input features are being subjected to multiple scaling/normalization functions
-    if ('standardize' in data_options) and ('minmaxscale' in data_options):
-        if set(cols_to_standardize).intersection(set(cols_to_minmaxscale)):
-            logger.warning('Input feature(s) are being subjected to multiple scaling/normalization functions:')
-            for feat in set(cols_to_standardize).intersection(set(cols_to_minmaxscale)):
-                logger.warning(feat)
-            logger.warning('')
     
     for idx in data.groupby([parameters.config[mode]['Device_ID_Col']]).groups.values():
         grouped_data = data.loc[idx]
@@ -84,6 +82,51 @@ def load_clean_data(parameters, logger, mode='TRAINING_DATA'):
             data.loc[idx, :] = minmaxscale_features(grouped_data, cols_to_minmaxscale)
 
     return data
+
+
+def data_warnings(parameters, logger):
+    """
+    Check for configuration options which may produce erroneous results without
+    impeding execution of the code. Log any such cases.
+    
+    @params:
+        parameters    - Required  : Parameter object to read config settings (Parameter)
+        logger        - Required  : Logger object for logging to console and file (Logger)
+    """
+
+    # If the training and test sets are drawn from the same dataset, they should have no elements in common.
+    if parameters.config['TRAINING_DATA']['Data'] == parameters.config['TEST_DATA']['Data']:
+
+        # Using a different pseudoRNG seed for splits virtually guarantees common elements.
+        if parameters.config['TRAINING_DATA']['Split_Seed'] != parameters.config['TEST_DATA']['Split_Seed']:
+            logger.warning('The seed for the pseudoRNG is different for the training and test data configuration options.')
+            logger.warning('This is likely to result in shared samples, which bias prediction performance upward.')
+            logger.warning('')
+
+        # Even with the same seed, there are some parameter configurations which result in data common to both the training and test sets.
+        else:
+
+            # If the sum of the split fractions is greater than one, there will be data common to both the training and test sets.
+            split_frac_sum = float(parameters.config['TRAINING_DATA']['Split_Fraction']) + float(parameters.config['TEST_DATA']['Split_Fraction'])
+            if not np.isclose(split_frac_sum, 1.0):
+                if split_frac_sum > 1.0:
+                    logger.warning('The split fractions for the training and test data configurations sum to greater than 1.')
+                    logger.warning('This guarantees that the trainig and test datasets will share samples, which bias prediction performance upward.')
+                    logger.warning('')
+            del split_frac_sum
+
+    # These warnings we want to check for in both the training and test datasets.
+    for mode in ['TRAINING_DATA', 'TEST_DATA']:
+
+        # Log/Report warning if input features are being subjected to multiple scaling/normalization functions
+        if ('standardize' in parameters.config[mode]['Data_Options'].split(',')) and ('minmaxscale' in parameters.config[mode]['Data_Options'].split(',')):
+            if set(parameters.config[mode]['Cols_To_Standardize'].split(',')).intersection(set(parameters.config[mode]['Cols_To_MinMaxScale'].split(','))):
+                logger.warning('Input feature(s) in the {} data are being subjected to multiple scaling/normalization functions:'.format(mode))
+                for feat in set(parameters.config[mode]['Cols_To_Standardize'].split(',')).intersection(set(parameters.config[mode]['Cols_To_MinMaxScale'].split(','))):
+                    logger.warning(feat)
+                logger.warning('')
+
+    return None
 
 
 def standardize_features(data, columns):
