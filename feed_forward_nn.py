@@ -178,7 +178,7 @@ class FeedForwardNN:
         """
 
         # Initialize DataFrame to hold results of permutation importance
-        perm_imps = pd.DataFrame(columns=['permuted_feature', 'score'])
+        perm_imps = pd.DataFrame(columns=['permuted_feature', 'features', 'score ({})'.format(scorer.__name__), 'confusion_matrix'])
         
         # Populate features to be permuted and set its column as row indices
         perm_imps['permuted_feature'] = list(X.columns.values) + ['none']
@@ -194,9 +194,10 @@ class FeedForwardNN:
 
             # Evaluate model predictions made with permuted inputs
             score = scorer(y, estimator.predict(X_permuted))
+            cm = confusion_matrix(y, estimator.predict(X_permuted))
 
             # Populate row with evaluation metrics
-            perm_imps.loc[feat].fillna({'score' : score}, inplace=True)
+            perm_imps.loc[feat].fillna({'score ({})'.format(scorer.__name__) : score, 'confusion_matrix' : cm, 'features' : list(X.columns.values)}, inplace=True)
 
         return perm_imps
 
@@ -258,7 +259,7 @@ class FeedForwardNN:
         # Maximum length of feature strings (used during logger column alignment)
         pad = max(max(map(len, unused_feats)), len('Candidate Feature')+1)
 
-        # Until there are no unincorporated features
+        # Until the model has the number of inputs specified in the config file, iterate by adding the best candidate feature
         while len(used_feats) < int(self.parameters.config['FEED_FORWARD']['Features_To_Select']):
 
             # DataFrame to hold scores of trial additions to existing input features
@@ -312,14 +313,14 @@ class FeedForwardNN:
 
         # Log/report RFA scores
         self.logger.info('Recursive Feature Addition Results:')
-        self.logger.info('{}  {}  Score ({})  {}'.format('No. Features'.ljust(pad-7), 'Features'.ljust(len(', '.join(self.results['recursive_feature_addition'].loc[len(used_feats), 'features']))), scorer.__name__, 'Confusion Matrix'))
+        self.logger.info('{}  Score ({})  {}  {}'.format('No. Features'.ljust(pad-7), scorer.__name__, 'Confusion Matrix', 'Features'.ljust(len(', '.join(self.results['recursive_feature_addition'].loc[len(used_feats), 'features'])))))
         for i in self.results['recursive_feature_addition'].index:
             self.logger.info(
                 '{}: {}  {}  {}'.format(
                     str(i).rjust(pad-6),
-                    ', '.join(self.results['recursive_feature_addition'].loc[i, 'features']).ljust(len(', '.join(self.results['recursive_feature_addition'].loc[len(used_feats), 'features']))),
                     ('{:0.4f}'.format(self.results['recursive_feature_addition'].loc[i, 'score ({})'.format(scorer.__name__)])).rjust(len(scorer.__name__)+8),
-                    str(self.results['recursive_feature_addition'].loc[i, 'confusion_matrix']).replace('\n', ' ').replace('\r', '')
+                    str(self.results['recursive_feature_addition'].loc[i, 'confusion_matrix']).replace('\n', ' ').replace('\r', ''),
+                    ', '.join(self.results['recursive_feature_addition'].loc[i, 'features']).ljust(len(', '.join(self.results['recursive_feature_addition'].loc[len(used_feats), 'features'])))
                 )
             )
         self.logger.info('')
@@ -348,19 +349,23 @@ class FeedForwardNN:
         del param_dict['n_features']
 
         # Log/report parameters of optimized model which are shared by all RFA-created models
-        self.logger.info('RFA Model Hyperparameters:')
+        self.logger.info('RFE Model Hyperparameters:')
         [self.logger.info('{}: {}'.format(param, param_dict[param])) for param in param_dict]
 
-        # Initialize lists of unused and used columns
+        # Initialize list of incorporated input features
         used_feats = self.parameters.config['TRAINING_DATA']['Cols_To_Use'].split(',')
-        removed_feats = ['none']
-        scores = []
+
+        # DataFrame to hold RFE results
+        self.results['recursive_feature_elimination'] = pd.DataFrame(columns=['n_features', 'features', 'score ({})'.format(scorer.__name__), 'confusion_matrix'])
+        self.results['recursive_feature_elimination'].set_index('n_features', inplace=True)
 
         # Maximum length of feature strings (used during logger column alignment)
         pad = max(max(map(len, used_feats)), len('Permuted Feature')+1)
 
+        # Until the model has the number of inputs specified in the config file, iterate by removing the least-informative feature
         while len(used_feats) >= int(self.parameters.config['FEED_FORWARD']['Features_To_Select']):
 
+            # Print to terminal (not to logger) the current feature set
             print('RFE iteration using reduced feature set: {}'.format(used_feats))
 
             # Training and Evaluation sets with partially-reduced feature set
@@ -377,42 +382,51 @@ class FeedForwardNN:
             # Calculate permutation importance for the input features and sort by score (highest to lowest)
             # of the model when it is used to predict with the data from the index feature shuffled
             perm_imps = self.permutation_importance(estimator=rfe_model, X=X_eval_reduced, y=y_eval, scorer=mcc, n_rep=5, n_jobs=1)
-            perm_imps = perm_imps.sort_values(by=['score'], ascending=False)
+            perm_imps = perm_imps.sort_values(by=['score ({})'.format(scorer.__name__)], ascending=False)
 
             # Log/report permutation importance scores for the partially-reduced feature set
             self.logger.info('Permutation Importances of remaining candidate features:')
-            self.logger.info('{}  Score'.format('Permuted Feature'.ljust(pad)))
+            self.logger.info('{}  {}  {}'.format('Permuted Feature'.ljust(pad), 'Score ({})'.format(scorer.__name__), 'Confusion Matrix'))
             for i in perm_imps.index:
-                self.logger.info('{}: {:0.4f}'.format(i.rjust(pad), perm_imps.loc[i].values[0]))
+                self.logger.info(
+                    '{}: {}  {}'.format(
+                        str(i).rjust(pad),
+                        ('{:0.4f}'.format(perm_imps.loc[i, 'score ({})'.format(scorer.__name__)])).rjust(len(scorer.__name__)+8),
+                        str(perm_imps.loc[i, 'confusion_matrix']).replace('\n', ' ').replace('\r', '')
+                    )
+                )
             self.logger.info('')
 
             # Identify least-informative feature (prediction score suffered the least from shuffling its values;
             # 'none' corresponds to no data shuffled).
-            worst_feats = perm_imps.head(n=2)
-            if worst_feats.index[0] == 'none':
-                worst_feat = worst_feats.index[1]
+            if perm_imps.index[0] == 'none':
+                worst_feat = perm_imps.index[1]
             else:
-                worst_feat = worst_feats.index[0]
-        
+                worst_feat = perm_imps.index[0]
+
+            # Record RFE results for model with n_features (from evaluation with no inputs permuted)
+            self.results['recursive_feature_elimination'].loc[len(used_feats)] = perm_imps.loc['none']
+
             # Remove worst-performing feature from next elimination iteration (if there will be one)
-            if not len(used_feats) == int(self.parameters.config['FEED_FORWARD']['Features_To_Select']):
-                removed_feats.append(worst_feat)
+            if len(used_feats) == int(self.parameters.config['FEED_FORWARD']['Features_To_Select']):
+                break
+            else:
+                self.logger.info('Removing least-informative informative input feature: {}'.format(worst_feat))
+                self.logger.info('')
+                used_feats.remove(worst_feat)
 
-            # Remove worst feature from used_feats
-            used_feats.remove(worst_feat)
-
-            # Record score of model with un-permuted inputs
-            scores.append(perm_imps.loc['none', 'score'])
-
-        # DataFrame to hold RFA results
-        self.results['recursive_feature_elimination'] = pd.DataFrame(columns=['score'], index=removed_feats)
-        self.results['recursive_feature_elimination'].loc[:, 'score'] = scores
-
-        # Log/Report recursive feature elimination results
+        # Log/report RFE scores
         self.logger.info('Recursive Feature Elimination Results:')
-        self.logger.info('{}  Score'.format('Removed Feature'.ljust(pad-1)))
+        self.logger.info('{}  Score ({})  {}  {}'.format('No. Features'.ljust(pad-7), scorer.__name__, 'Confusion Matrix', 'Features'))
         for i in self.results['recursive_feature_elimination'].index:
-            self.logger.info('{}: {:0.4f}'.format(i.rjust(pad), self.results['recursive_feature_elimination'].loc[i].values[0]))
+            self.logger.info(
+                '{}: {}  {}  {}'.format(
+                    str(i).rjust(pad-6),
+                    ('{:0.4f}'.format(self.results['recursive_feature_elimination'].loc[i, 'score ({})'.format(scorer.__name__)])).rjust(len(scorer.__name__)+8),
+                    str(self.results['recursive_feature_elimination'].loc[i, 'confusion_matrix']).replace('\n', ' ').replace('\r', ''),
+                    ', '.join(self.results['recursive_feature_elimination'].loc[i, 'features'])
+                )
+            )
         self.logger.info('')
 
         return self.results['recursive_feature_elimination']
