@@ -1,4 +1,5 @@
 import os
+import ast
 import pandas as pd
 import numpy as np
 from math import sqrt
@@ -40,10 +41,10 @@ def load_clean_data(parameters, logger, mode='TRAINING_DATA'):
         mode          - Optional  : Pull data from different locations in config file (Str)
     """
 
-    if (not os.path.exists(os.path.join(parameters.main_path, parameters.config[mode]['Weather_Correction']))):
+    if (not os.path.exists(os.path.join(parameters.main_path, parameters.config[mode]['Background_Data']))):
         data = pd.read_csv(os.path.join(parameters.main_path, parameters.config[mode]['Data']))
     else:
-        data = weather_correction(os.path.join(parameters.main_path, parameters.config[mode]['Data']), os.path.join(parameters.main_path, parameters.config['TRAINING_DATA']['Weather_Correction']))
+        data = background_correction(parameters, logger, mode)
 
     data.loc[:, 'utc-time'] = pd.to_datetime(data['time'], unit='s', utc=True)  # convert unix epoch time to utc
 
@@ -181,10 +182,13 @@ def weather_correction(data_path, weather_correction_path):
     weather_data = pd.read_csv(weather_correction_path)
     measured_data = pd.read_csv(data_path)
 
-    measured_data.loc[:, 'temp'] = measured_data['temp'] / 100  # convert temperature to floating point
+    # measured_data.loc[:, 'temp'] = measured_data['temp'] / 100  # convert temperature to floating point
     
     weather_data['LocalPressure'] = pd.Series(weather_data['LocalPressure']*100)  # convert weather pressures in hPa to Pa
     weather_data['Temp'] = pd.Series((weather_data['Temp'] - 273.15)*100) # convert weather temps in K to degrees C*100
+    print(weather_data['Temp'].head(n=10))
+    print(measured_data['temp'].head(n=10))
+    exit()
     weather_data['RHx'] = pd.Series((weather_data['RHx']*1024)) # convert weather %RH to %RH*1024
 
     measured_data['pressure'] = weather_helper(measured_data, 'pressure', weather_data, 'LocalPressure')
@@ -207,22 +211,65 @@ def weather_helper(measured_data, m_v, weather_data, w_v):
     measured_times = pd.Series(measured_data['time'])
     weather_times = pd.Series(weather_data['Date'])
 
+    # Convert the canary and weather data to pandas series
     measured_values = pd.Series(measured_data[m_v])
     weather_values = pd.Series(weather_data[w_v])
 
+    # initialize values for the scan through weather data until the beginning of canary data is found
     first_measured = measured_times[0]
     weather_time_index = 0
+
+    # Find the index (in time) of the last background data prior to the first input data timestep
     while True:
+        # If the next timestep for the weather data is greater than the first timestep for the canary data, exit the loop
         if weather_times[weather_time_index + 1] > first_measured:
             break
         weather_time_index += 1
 
+    # Reduce the weather timesteps and data to only points occurring past the index obtained
+    # with the while loop and reset their pandas indices
     weather_times = weather_times[weather_time_index:]
     weather_times = weather_times.reset_index(drop=True)
     weather_values = weather_values[weather_time_index:]
     weather_values = weather_values.reset_index(drop=True)
 
+    # interpolate values for weather data at the canara data timesteps
     interpolated_weather_values = np.interp(measured_times, weather_times, weather_values)
+
+    # Subtract off interpolated background data
     corrected_values = measured_values - interpolated_weather_values
 
     return corrected_values
+
+
+def background_correction(parameters, logger, mode):
+    """
+    Background correction function which linearly interpolates background data
+    and subtracts the interpolated values from the input data.
+    
+    @params:
+        parameters    - Required  : Parameter object to read config settings (Parameter)
+        logger        - Required  : Logger object for logging to console and file (Logger)
+        mode          - Required  : Pull data from different locations in config file (Str)
+    """
+
+    # Load raw input data and background data
+    input_data = pd.read_csv(parameters.config[mode]['Data'])
+    background = pd.read_csv(parameters.config[mode]['Background_Data'])
+
+    # Subset of background data which temporally spans the raw input data (improves runtime)
+    background = background[(background.loc[:, 'time'] > input_data.loc[:, 'time'].min()) & 
+                            (background.loc[:, 'time'] < input_data.loc[:, 'time'].max())]
+
+    # Iterate through pairs specified in the CONFIG file as key, value of dict where:
+    # (input_col) key = column name in raw input data
+    # (bkgd_col)  value = background data column name which will be used to adjust the input_col data
+    for input_col, bkgd_col in ast.literal_eval(parameters.config[mode]['Background_Correction_Cols']).items():
+
+        # Piecewise-linear interpolation of the background data evaluated at the times in input_data
+        interpolated_bkgd = np.interp(input_data['time'], background['time'], background[bkgd_col])
+
+        # Subtract off interpolated background from measured input data
+        input_data.loc[:,  input_col] = input_data.loc[:,  input_col] - interpolated_bkgd
+    
+    return input_data
