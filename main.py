@@ -282,11 +282,11 @@ def run_feed_forward_nn(parameters):
     if ('Test' in parameters.config['MAIN']['Mode']):
         models.load_models(parameters.config['FEED_FORWARD']['Load_Model_Path'])
 
-        # # Nicely-formatted model parameters
-        # logger.info('Models successfully loaded with the following parameters:')
-        # for param, value in models.results['optimized_model'].get_params().items():
-        #     logger.info('{}: {}'.format(param, value))
-        #     logger.info('')
+        # Nicely-formatted parameters of the most successful classifier in the loaded models object
+        logger.info('Models successfully loaded; the best-performing model has the following parameters:')
+        for param, value in models.models.best_estimator_.get_params().items():
+            logger.info('{}: {}'.format(param, value))
+        logger.info('')
 
         # Score the model's prediction performance on the test set.
         models.test(X_test, y_test)
