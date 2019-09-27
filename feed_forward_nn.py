@@ -281,7 +281,7 @@ class FeedForwardNN:
                     scorer=scorer
                 )
 
-                # Record score when candidate feature is includedmda_df = mda_df.sort_values(by=['accuracy'], ascending=False)
+                # Record score when candidate feature is included
                 candidate_scores.loc[feat].fillna({'features' : used_feats + [feat], 'score ({})'.format(scorer.__name__) : score, 'confusion_matrix' : cm}, inplace=True)
 
             # Sort candidate features by model prediction score and identify the best candidate feature
