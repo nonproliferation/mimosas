@@ -78,7 +78,7 @@ class FeedForwardNN:
 
         # Compatibility-wrapped estimator constructor
         self.estimator = KerasClassifier(build_fn=construct_network, verbose=1)
-        self.grid = GridSearchCV(estimator=self.estimator, param_grid=self.hyperparameters, scoring=make_scorer(mcc), cv=int(parameters.config['FEED_FORWARD']['CV_Folds']), return_train_score=True, n_jobs=-1)
+        self.models = GridSearchCV(estimator=self.estimator, param_grid=self.hyperparameters, scoring=make_scorer(mcc), cv=int(parameters.config['FEED_FORWARD']['CV_Folds']), return_train_score=True, n_jobs=-1)
         
         # Dict to store results
         self.results = {}
@@ -117,18 +117,17 @@ class FeedForwardNN:
         # if (self.parameters.config['FEED_FORWARD']['Feature_Selection'] == 'True'):
         #     X = self.select_features(X, y, 'Train')
 
-        # Fit grid
-        self.grid.fit(X, y)
+        # Fit models
+        self.models.fit(X, y)
 
         # Store best parameters and optimized model
-        self.results['best_params'] = self.grid.best_params_  # parameter setting that gave the best results on the hold out data.
-        self.results['best_cv_score'] = self.grid.best_score_  # mean cross-validated score of the best_estimator
-        self.results['hyper_params'] = self.grid.cv_results_['params']
-        self.results['cv_mean_train_score'] = self.grid.cv_results_['mean_train_score']  # average cross-validation training score
-        self.results['cv_mean_validate_score'] = self.grid.cv_results_['mean_test_score']  # average cross-validation validation score
-        self.results['optimized_model'] = self.grid.best_estimator_ # Instance of the model with optimized hyperparameters trained on the entirety of the non-test data
-        # self.results['feature_importances'] = sorted(zip(self.grid.best_estimator_.feature_importances_, self.parameters.config['TRAINING_DATA']['Cols_To_Use'].split(',')), reverse=True)
-        
+        self.results['best_params'] = self.models.best_params_  # parameter setting that gave the best results on the hold out data.
+        self.results['best_cv_score'] = self.models.best_score_  # mean cross-validated score of the best_estimator
+        self.results['hyper_params'] = self.models.cv_results_['params']
+        self.results['cv_mean_train_score'] = self.models.cv_results_['mean_train_score']  # average cross-validation training score
+        self.results['cv_mean_validate_score'] = self.models.cv_results_['mean_test_score']  # average cross-validation validation score
+        self.results['optimized_model'] = self.models.best_estimator_ # Instance of the model with optimized hyperparameters trained on the entirety of the non-test data
+
         # Log CV Search Parameters
         for mean, params in zip(self.results['cv_mean_validate_score'], self.results['hyper_params']):
             self.logger.info('{:0.5f} with {}'.format(mean, params))
@@ -152,18 +151,13 @@ class FeedForwardNN:
 
         self.logger.info('Testing Feed-Forward Neural Network')
         self.logger.info('')
-        # if (self.parameters.config['FEED_FORWARD']['Feature_Selection'] == 'True'):
-        #     # X = self.select_features(X, y, mode='Test')
-        #     self.select_features(X, y, X, y, scorer=mcc)
 
         # Test Score
-        self.results['test_score'] = self.results['optimized_model'].score(X, y)
-        self.results['test_mcc'] = mcc(y, self.results['optimized_model'].predict(X))
+        self.results['test_score'] = self.models.score(X, y)
         self.logger.info('Test score: ' + str(self.results['test_score']))
-        self.logger.info('Test MCC: ' + str(self.results['test_mcc']))
 
         # Confusion matrix on test set
-        self.results['test_confusion_matrix'] = confusion_matrix(y, self.results['optimized_model'].predict(X))
+        self.results['test_confusion_matrix'] = confusion_matrix(y, self.models.predict(X))
         self.logger.info('Test confusion matrix: ' + str(self.results['test_confusion_matrix']).replace('\n', ' ').replace('\r', ''))
         self.logger.info('')
 
@@ -432,24 +426,24 @@ class FeedForwardNN:
 
         return self.results['recursive_feature_elimination']
 
-    def save_model(self):
+    def save_models(self):
         """
-        Save model pickle
+        Save models object with pickle serialization
         """
 
-        self.logger.info('Saving Model')
+        self.logger.info('Saving Models')
         self.logger.info('')
-        pickle.dump(self.results['optimized_model'], open(os.path.join(self.path, 'model.pkl'), 'wb'))
+        pickle.dump(self.models, open(os.path.join(self.path, 'models.pkl'), 'wb'))
 
-    def load_model(self, path):
+    def load_models(self, path):
         """
-        Load model - called for test mode
-        
+        Load pickle-serialized models object
+
         @params:
-            path          - Required  : Path to where model is stored (Str)
+            path          - Required  : Path to where models object is stored (Str)
         """
 
-        # load the model from disk
+        # Load the models object from disk
         self.logger.info('Loading Model')
         self.logger.info('')
-        self.results['optimized_model'] = pickle.load(open(path, 'rb'))
+        self.models = pickle.load(open(path, 'rb'))

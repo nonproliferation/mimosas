@@ -36,7 +36,7 @@ class RandomForest:
         ## Scikit-Learn estimator used for classification
         self.estimator = RandomForestClassifier(criterion=parameters.config['RANDOM_FOREST']['Classifier_Criterion'])
         ## Grid Search model for hyperparameter tuning
-        self.model = GridSearchCV(self.estimator, hyper_parameters, scoring=make_scorer(mcc), cv=cv, return_train_score=True)
+        self.models = GridSearchCV(self.estimator, hyper_parameters, scoring=make_scorer(mcc), cv=cv, return_train_score=True)
         ## Dictionary to store training results
         self.results = {}
         
@@ -55,16 +55,16 @@ class RandomForest:
 
         self.logger.info('Training Random Forest')
         self.logger.info('')
-        if (self.parameters.config['RANDOM_FOREST']['Feature_Selection'] == 'True'):
-            X = self.select_features(X, y, 'Train')
+        # if (self.parameters.config['RANDOM_FOREST']['Feature_Selection'] == 'True'):
+        #     X = self.select_features(X, y, 'Train')
 
-        self.model.fit(X, y)
-        self.results['best_params'] = self.model.best_params_  # parameter setting that gave the best results on the hold out data.
-        self.results['best_cv_score'] = self.model.best_score_  # mean cross-validated score of the best_estimator
-        self.results['hyper_params'] = self.model.cv_results_['params']
-        self.results['cv_mean_train_score'] = self.model.cv_results_['mean_train_score']  # average cross-validation training score
-        self.results['cv_mean_validate_score'] = self.model.cv_results_['mean_test_score']  # avergage cross-validation validation score
-        self.results['feature_importances'] = sorted(zip(self.model.best_estimator_.feature_importances_, self.parameters.config['TRAINING_DATA']['Cols_To_Use'].split(',')), reverse=True)
+        self.models.fit(X, y)
+        self.results['best_params'] = self.models.best_params_  # parameter setting that gave the best results on the hold out data.
+        self.results['best_cv_score'] = self.models.best_score_  # mean cross-validated score of the best_estimator
+        self.results['hyper_params'] = self.models.cv_results_['params']
+        self.results['cv_mean_train_score'] = self.models.cv_results_['mean_train_score']  # average cross-validation training score
+        self.results['cv_mean_validate_score'] = self.models.cv_results_['mean_test_score']  # avergage cross-validation validation score
+        self.results['feature_importances'] = sorted(zip(self.models.best_estimator_.feature_importances_, self.parameters.config['TRAINING_DATA']['Cols_To_Use'].split(',')), reverse=True)
             
         self.logger.info('Best parameters: ' + str(self.results['best_params']))
         self.logger.info('Best CV score: ' + str(self.results['best_cv_score']))
@@ -87,8 +87,8 @@ class RandomForest:
         self.logger.info('Testing Random Forest')
         self.logger.info('')
 
-        self.results['test_score'] = self.model.score(X, y)
-        self.results['test_confusion_matrix'] = confusion_matrix(y, self.model.predict(X))
+        self.results['test_score'] = self.models.score(X, y)
+        self.results['test_confusion_matrix'] = confusion_matrix(y, self.models.predict(X))
         
         self.logger.info('Test score: ' + str(self.results['test_score']))
         self.logger.info('Test confusion matrix: ' + str(self.results['test_confusion_matrix']).replace('\n', ' ').replace('\r', ''))
@@ -119,7 +119,7 @@ class RandomForest:
 
         if (mode == 'Test'):
             cols_to_use = self.parameters.config['TEST_DATA']['Cols_To_Use'].split(',')
-            feature_importances = {cols_to_use[i]:self.model.best_estimator_.feature_importances_[i] for i in range(len(cols_to_use))}
+            feature_importances = {cols_to_use[i]:self.models.best_estimator_.feature_importances_[i] for i in range(len(cols_to_use))}
             sorted_features = [k for (k, v) in sorted(feature_importances.items(), key=lambda kv: kv[1], reverse=True)]
             ## n Features selected
             self.selected_features = sorted_features[:int(self.parameters.config['RANDOM_FOREST']['Features_To_Select'])]
@@ -128,24 +128,24 @@ class RandomForest:
 
         return X[self.selected_features]
 
-    def save_model(self):
+    def save_models(self):
         """
-        Save model pickle
+        Save models object with pickle serialization
         """
 
-        self.logger.info('Saving Model')
+        self.logger.info('Saving Models')
         self.logger.info('')
-        pickle.dump(self.model, open(os.path.join(self.path, 'model.pkl'), 'wb'))
+        pickle.dump(self.models, open(os.path.join(self.path, 'models.pkl'), 'wb'))
 
-    def load_model(self, path):
+    def load_models(self, path):
         """
-        Load model - called for test mode
-        
+        Load pickle-serialized models object
+
         @params:
-            path          - Required  : Path to where model is stored (Str)
+            path          - Required  : Path to where models object is stored (Str)
         """
 
-        # load the model from disk
-        self.logger.info('Loading Model')
+        # Load the models object from disk
+        self.logger.info('Loading Models')
         self.logger.info('')
-        self.model = pickle.load(open(path, 'rb'))
+        self.models = pickle.load(open(path, 'rb'))

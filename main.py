@@ -135,17 +135,17 @@ def run_decision_tree(parameters):
     # Initialize model object
     logger.info('Running Decision Tree')
     logger.info('')
-    model = DecisionTree(parameters, path, logger)
+    models = DecisionTree(parameters, path, logger)
 
     # Load data
     X_train, X_test, y_train, y_test = load_scramble_data(parameters, logger)
 
     # In Test mode, MIMOASAS will load a pre-trained model, log its parameters, and score it.
     if ('Test' in parameters.config['MAIN']['Mode']):
-        model.load_model(parameters.config['DECISION_TREE']['Load_Model_Path'])
+        models.load_models(parameters.config['DECISION_TREE']['Load_Model_Path'])
 
         # Score the model's prediction performance on the test set.
-        model.test(X_test, y_test)
+        models.test(X_test, y_test)
         
         # Exit execution
         logger.info('DONE')
@@ -155,9 +155,9 @@ def run_decision_tree(parameters):
         return None
 
     # If not in Test mode, do everything
-    model.train(X_train, y_train)
-    model.test(X_test, y_test)
-    model.save_model()
+    models.train(X_train, y_train)
+    models.test(X_test, y_test)
+    models.save_models()
     logger.info('DONE')
     logger.info('')
     logger.info('')
@@ -204,17 +204,17 @@ def run_random_forest(parameters):
     # Initialize model object
     logger.info('Running Random Forest')
     logger.info('')
-    model = RandomForest(parameters, path, logger)
+    models = RandomForest(parameters, path, logger)
 
     # Load data
     X_train, X_test, y_train, y_test = load_scramble_data(parameters, logger)
 
     # In Test mode, MIMOASAS will load a pre-trained model, log its parameters, and score it.
     if ('Test' in parameters.config['MAIN']['Mode']):
-        model.load_model(parameters.config['RANDOM_FOREST']['Load_Model_Path'])
+        models.load_models(parameters.config['RANDOM_FOREST']['Load_Model_Path'])
 
         # Score the model's prediction performance on the test set.
-        model.test(X_test, y_test)
+        models.test(X_test, y_test)
         
         # Exit execution
         logger.info('DONE')
@@ -224,9 +224,9 @@ def run_random_forest(parameters):
         return None
 
     # If not in Test mode, do everything
-    model.train(X_train, y_train)
-    model.test(X_test, y_test)
-    model.save_model()
+    models.train(X_train, y_train)
+    models.test(X_test, y_test)
+    models.save_models()
     logger.info('DONE')
     logger.info('')
     logger.info('')
@@ -273,29 +273,29 @@ def run_feed_forward_nn(parameters):
     # Initialize model object
     logger.info('Running Feed-Forward Neural Network')
     logger.info('')
-    model = FeedForwardNN(parameters, path, logger)
+    models = FeedForwardNN(parameters, path, logger)
 
     # Load data
     X_train, X_test, y_train, y_test = load_scramble_data(parameters, logger)
 
     # In Test mode, MIMOASAS will load a pre-trained model, log its parameters, and score it.
     if ('Test' in parameters.config['MAIN']['Mode']):
-        model.load_model(parameters.config['FEED_FORWARD']['Load_Model_Path'])
+        models.load_models(parameters.config['FEED_FORWARD']['Load_Model_Path'])
 
-        # Nicely-formatted model parameters
-        logger.info('Model successfully loaded with the following parameters:')
-        for param, value in model.results['optimized_model'].get_params().items():
-            logger.info('{}: {}'.format(param, value))
-            logger.info('')
+        # # Nicely-formatted model parameters
+        # logger.info('Models successfully loaded with the following parameters:')
+        # for param, value in models.results['optimized_model'].get_params().items():
+        #     logger.info('{}: {}'.format(param, value))
+        #     logger.info('')
 
         # Score the model's prediction performance on the test set.
-        model.test(X_test, y_test)
+        models.test(X_test, y_test)
 
         # If feature selection is indicated in the CONFIG file, calculate the permutation importance
         # of the input features.
         # NOTE: A lower score means a higher permutation importance (model performed worse with that feature's values shuffled)
         if (parameters.config['FEED_FORWARD']['Feature_Selection'] == 'True'):
-            perm_imps = model.permutation_importance(estimator=model.results['optimized_model'], X=X_test, y=y_test)
+            perm_imps = models.permutation_importance(estimator=models.models.best_estimator_, X=X_test, y=y_test)
             perm_imps = perm_imps.sort_values(by=[perm_imps.columns.values[1]], ascending=False)
 
             # Log/report permutation importance scores for the partially-reduced feature set
@@ -319,15 +319,15 @@ def run_feed_forward_nn(parameters):
         stop_logger(logger)
         return None
 
-    model.train(X_train, y_train)
-    model.test(X_test, y_test)
-    model.save_model()
+    models.train(X_train, y_train)
+    models.test(X_test, y_test)
+    models.save_models()
 
     # If feature selection is indicated in the CONFIG file, use the RFA and RFE
     # algorithms to quantify model performance as a function of input feature set
     if (parameters.config['FEED_FORWARD']['Feature_Selection'] == 'True'):
-        model.recursive_feature_addition(X_train, X_test, y_train, y_test)
-        model.recursive_feature_elimination(X_train, X_test, y_train, y_test)
+        models.recursive_feature_addition(X_train, X_test, y_train, y_test)
+        models.recursive_feature_elimination(X_train, X_test, y_train, y_test)
 
     logger.info('DONE')
     logger.info('')
