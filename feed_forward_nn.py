@@ -439,7 +439,7 @@ class FeedForwardNN:
 
         self.logger.info('Saving Model')
         self.logger.info('')
-        pickle.dump(self.results['optimized_model'], open(self.path + 'model.pkl', 'wb'))
+        pickle.dump(self.results['optimized_model'], open(os.path.join(self.path, 'model.pkl'), 'wb'))
 
     def load_model(self, path):
         """

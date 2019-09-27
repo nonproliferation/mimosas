@@ -1,0 +1,56 @@
+2019-09-26 17:43:24,054 [INFO] Multisource Input Model Output Security Analysis Suite (MIMOSAS) v1.0.0-release.1
+2019-09-26 17:43:24,054 [INFO] Copyright (C) 2019 University of California, Berkeley
+2019-09-26 17:43:24,054 [INFO] https://complexity.berkeley.edu/mimosas/
+2019-09-26 17:43:24,054 [INFO] 
+2019-09-26 17:43:24,054 [INFO] Running Random Forest
+2019-09-26 17:43:24,054 [INFO] 
+2019-09-26 17:43:24,054 [INFO] Initializing Random Forest
+2019-09-26 17:43:24,054 [INFO] Using Classifier Criterion: entropy
+2019-09-26 17:43:24,054 [INFO] 
+2019-09-26 17:43:24,054 [INFO] Preparing training/validation set data
+2019-09-26 17:43:24,055 [INFO] 
+2019-09-26 17:43:24,241 [INFO] Cleaning statistics:
+2019-09-26 17:43:24,241 [INFO] 8477 total raw data points
+2019-09-26 17:43:24,241 [INFO] 6459 data points after cleaning
+2019-09-26 17:43:24,241 [INFO] The fraction of each device's events removed by cleaning is:
+2019-09-26 17:43:24,241 [INFO] ID 12678: 0.2466
+2019-09-26 17:43:24,241 [INFO] ID  9474: 0.2258
+2019-09-26 17:43:24,241 [INFO] 
+2019-09-26 17:43:24,312 [INFO] Preparing test set data
+2019-09-26 17:43:24,312 [INFO] 
+2019-09-26 17:43:24,548 [INFO] Cleaning statistics:
+2019-09-26 17:43:24,548 [INFO] 8477 total raw data points
+2019-09-26 17:43:24,549 [INFO] 6459 data points after cleaning
+2019-09-26 17:43:24,549 [INFO] The fraction of each device's events removed by cleaning is:
+2019-09-26 17:43:24,549 [INFO] ID 12678: 0.2466
+2019-09-26 17:43:24,549 [INFO] ID  9474: 0.2258
+2019-09-26 17:43:24,549 [INFO] 
+2019-09-26 17:43:24,630 [INFO] Training Random Forest
+2019-09-26 17:43:24,630 [INFO] 
+2019-09-26 17:43:25,655 [INFO] Best parameters: {'max_depth': 4, 'n_estimators': 50}
+2019-09-26 17:43:25,655 [INFO] Best CV score: 0.0
+2019-09-26 17:43:25,655 [INFO] Hyper parameters: [{'max_depth': 4, 'n_estimators': 50}]
+2019-09-26 17:43:25,656 [INFO] CV mean train score: [0.]
+2019-09-26 17:43:25,656 [INFO] CV mean validate score: [0.]
+2019-09-26 17:43:25,656 [INFO] Feature importance: (0.3099191734723164, 'feature_09')
+2019-09-26 17:43:25,656 [INFO] Feature importance: (0.2075243238253685, 'feature_01')
+2019-09-26 17:43:25,656 [INFO] Feature importance: (0.11552177183649019, 'feature_08')
+2019-09-26 17:43:25,656 [INFO] Feature importance: (0.10743377667819667, 'feature_04')
+2019-09-26 17:43:25,656 [INFO] Feature importance: (0.09307408763940228, 'feature_03')
+2019-09-26 17:43:25,656 [INFO] Feature importance: (0.0770613992301555, 'feature_02')
+2019-09-26 17:43:25,656 [INFO] Feature importance: (0.06436977898048288, 'feature_10')
+2019-09-26 17:43:25,656 [INFO] Feature importance: (0.011978915697865624, 'feature_07')
+2019-09-26 17:43:25,656 [INFO] Feature importance: (0.0068941640934765585, 'feature_11')
+2019-09-26 17:43:25,656 [INFO] Feature importance: (0.006222608546245237, 'feature_05')
+2019-09-26 17:43:25,656 [INFO] Feature importance: (0.0, 'feature_06')
+2019-09-26 17:43:25,656 [INFO] 
+2019-09-26 17:43:25,656 [INFO] Testing Random Forest
+2019-09-26 17:43:25,656 [INFO] 
+2019-09-26 17:43:25,675 [INFO] Test score: 0.0
+2019-09-26 17:43:25,676 [INFO] Test confusion matrix: [[1795    0]  [ 143    0]]
+2019-09-26 17:43:25,676 [INFO] 
+2019-09-26 17:43:25,676 [INFO] Saving Model
+2019-09-26 17:43:25,676 [INFO] 
+2019-09-26 17:43:25,677 [INFO] DONE
+2019-09-26 17:43:25,677 [INFO] 
+2019-09-26 17:43:25,677 [INFO] 

@@ -3,6 +3,7 @@ import sys
 import logging
 import datetime
 import warnings
+import pickle
 from shutil import copyfile
 
 import numpy as np
@@ -19,7 +20,7 @@ os.environ['KMP_WARNINGS'] = 'off'
 os.environ['KMP_AFFINITY'] = 'disabled'
 
 # Header detailing version that's printed out at the beginning of each run and at the top of each log file
-header = ['Multi-Modal Analysis Suite (MMAS) v1.0.0-release.1', 'Copyright (C) 2019 University of California, Berkeley', 'https://complexity.berkeley.edu/mimosas/']
+header = ['Multisource Input Model Output Security Analysis Suite (MIMOSAS) v1.0.0-release.1', 'Copyright (C) 2019 University of California, Berkeley', 'https://complexity.berkeley.edu/mimosas/']
 
 
 def start_logger(path):
@@ -81,10 +82,10 @@ def main(main_path):
     for line in header:
         print(line)
     print('\n')
-    
+
     # Parse config file
     parameters = Parameters(main_path)
-    
+
     # Run indicated models
     if ('DECISION_TREE' in parameters.config.sections()):
         run_decision_tree(parameters)
@@ -102,28 +103,58 @@ def run_decision_tree(parameters):
         parameters   - Required  : parameter object containing parameters loaded from config file (Parameter)
     """
 
+    # If running in Test mode, check to make sure Load_Model_Path in CONFIG points to a loadable .pkl
+    if parameters.config['MAIN']['Mode'] == 'Test':
+        try:
+            pickle.load(open(parameters.config['DECISION_TREE']['Load_Model_Path'], 'rb'))
+        except:
+            print('There is no loadable model at', parameters.config['DECISION_TREE']['Load_Model_Path'])
+            print('Exiting.')
+            exit()
+
     # Generate session folder
     session = datetime.datetime.utcnow().strftime('%Y_%b_%d_%Hh_%Mm_%Ss')
-    path = './saved_models/decision_tree/' + session + '/'
+    path = os.path.join('.', 'saved_models', 'decision_tree', session)
     if not os.path.exists(path):
         os.makedirs(path)
-    
+
+    # Copy config file used as backup
+    copyfile(parameters.config_file, os.path.join(path, 'used_conf.config'))
+
+    # If running in Test mode, copy in the loaded model and its training history; any results will be appended to this
+    if parameters.config['MAIN']['Mode'] == 'Test':
+        copyfile(parameters.config['DECISION_TREE']['Load_Model_Path'], os.path.join(path, os.path.basename(parameters.config['DECISION_TREE']['Load_Model_Path'])))
+        copyfile(os.path.join(os.path.dirname(parameters.config['DECISION_TREE']['Load_Model_Path']), 'training.log'), os.path.join(path, 'training.log'))
+
     # Create session logger
-    logger = start_logger(path + 'training.log')
+    logger = start_logger(os.path.join(path, 'training.log'))
     for line in header:
         logger.info(line)
     logger.info('')
-    
-    # Copy config file used as backup
-    copyfile(parameters.config_file, path + 'used_conf.config')
         
-    # Initialize and run model
+    # Initialize model object
     logger.info('Running Decision Tree')
     logger.info('')
     model = DecisionTree(parameters, path, logger)
+
+    # Load data
     X_train, X_test, y_train, y_test = load_scramble_data(parameters, logger)
+
+    # In Test mode, MIMOASAS will load a pre-trained model, log its parameters, and score it.
     if (parameters.config['DECISION_TREE']['Load_Model_Path']):
-        model.load_model(arameters.config['DECISION_TREE']['Load_Model_Path'])
+        model.load_model(parameters.config['DECISION_TREE']['Load_Model_Path'])
+
+        # Score the model's prediction performance on the test set.
+        model.test(X_test, y_test)
+        
+        # Exit execution
+        logger.info('DONE')
+        logger.info('')
+        logger.info('')
+        stop_logger(logger)
+        return None
+
+    # If not in Test mode, do everything
     model.train(X_train, y_train)
     model.test(X_test, y_test)
     model.save_model()
@@ -141,28 +172,58 @@ def run_random_forest(parameters):
         parameters   - Required  : parameter object containing parameters loaded from config file (Parameter)
     """
 
+    # If running in Test mode, check to make sure Load_Model_Path in CONFIG points to a loadable .pkl
+    if parameters.config['MAIN']['Mode'] == 'Test':
+        try:
+            pickle.load(open(parameters.config['RANDOM_FOREST']['Load_Model_Path'], 'rb'))
+        except:
+            print('There is no loadable model at', parameters.config['RANDOM_FOREST']['Load_Model_Path'])
+            print('Exiting.')
+            exit()
+
     # Generate session folder
     session = datetime.datetime.utcnow().strftime('%Y_%b_%d_%Hh_%Mm_%Ss')
-    path = './saved_models/random_forest/' + session + '/'
+    path = os.path.join('.', 'saved_models', 'random_forest', session)
     if not os.path.exists(path):
         os.makedirs(path)
-    
+
+    # Copy config file used as backup
+    copyfile(parameters.config_file, os.path.join(path, 'used_conf.config'))
+
+    # If running in Test mode, copy in the loaded model and its training history; any results will be appended to this
+    if parameters.config['MAIN']['Mode'] == 'Test':
+        copyfile(parameters.config['RANDOM_FOREST']['Load_Model_Path'], os.path.join(path, os.path.basename(parameters.config['RANDOM_FOREST']['Load_Model_Path'])))
+        copyfile(os.path.join(os.path.dirname(parameters.config['RANDOM_FOREST']['Load_Model_Path']), 'training.log'), os.path.join(path, 'training.log'))
+
     # Create session logger
-    logger = start_logger(path + 'training.log')
+    logger = start_logger(os.path.join(path, 'training.log'))
     for line in header:
         logger.info(line)
     logger.info('')
-    
-    # Copy config file used as backup
-    copyfile(parameters.config_file, path + 'used_conf.config')
-        
-    # Initialize and run model
+
+    # Initialize model object
     logger.info('Running Random Forest')
     logger.info('')
     model = RandomForest(parameters, path, logger)
+
+    # Load data
     X_train, X_test, y_train, y_test = load_scramble_data(parameters, logger)
+
+    # In Test mode, MIMOASAS will load a pre-trained model, log its parameters, and score it.
     if (parameters.config['RANDOM_FOREST']['Load_Model_Path']):
-        model.load_model(arameters.config['RANDOM_FOREST']['Load_Model_Path'])
+        model.load_model(parameters.config['RANDOM_FOREST']['Load_Model_Path'])
+
+        # Score the model's prediction performance on the test set.
+        model.test(X_test, y_test)
+        
+        # Exit execution
+        logger.info('DONE')
+        logger.info('')
+        logger.info('')
+        stop_logger(logger)
+        return None
+
+    # If not in Test mode, do everything
     model.train(X_train, y_train)
     model.test(X_test, y_test)
     model.save_model()
@@ -180,22 +241,36 @@ def run_feed_forward_nn(parameters):
         parameters   - Required  : parameter object containing parameters loaded from config file (Parameter)
     """
 
+    # If running in Test mode, check to make sure Load_Model_Path in CONFIG points to a loadable .pkl
+    if parameters.config['MAIN']['Mode'] == 'Test':
+        try:
+            pickle.load(open(parameters.config['FEED_FORWARD']['Load_Model_Path'], 'rb'))
+        except:
+            print('There is no loadable model at', parameters.config['FEED_FORWARD']['Load_Model_Path'])
+            print('Exiting.')
+            exit()
+
     # Generate session folder
     session = datetime.datetime.utcnow().strftime('%Y_%b_%d_%Hh_%Mm_%Ss')
-    path = './saved_models/feed_forward_nn/' + session + '/'
+    path = os.path.join('.', 'saved_models', 'feed_forward_nn', session)
     if not os.path.exists(path):
         os.makedirs(path)
     
-    # Create session logger
-    logger = start_logger(path + 'training.log')
+    # Copy config file used for records
+    copyfile(parameters.config_file, os.path.join(path, 'used_conf.config'))
+
+    # If running in Test mode, copy in the loaded model and its training history; any results will be appended to this
+    if parameters.config['MAIN']['Mode'] == 'Test':
+        copyfile(parameters.config['FEED_FORWARD']['Load_Model_Path'], os.path.join(path, os.path.basename(parameters.config['FEED_FORWARD']['Load_Model_Path'])))
+        copyfile(os.path.join(os.path.dirname(parameters.config['FEED_FORWARD']['Load_Model_Path']), 'training.log'), os.path.join(path, 'training.log'))
+
+    # Create session logger; if in Test mode, the logger appends to the existing logfile.
+    logger = start_logger(os.path.join(path, 'training.log'))
     for line in header:
         logger.info(line)
     logger.info('')
-    
-    # Copy config file used as backup
-    copyfile(parameters.config_file, path + 'used_conf.config')
         
-    # Initialize and run model
+    # Initialize model object
     logger.info('Running Feed-Forward Neural Network')
     logger.info('')
     model = FeedForwardNN(parameters, path, logger)
@@ -203,16 +278,46 @@ def run_feed_forward_nn(parameters):
     # Load data
     X_train, X_test, y_train, y_test = load_scramble_data(parameters, logger)
 
+    # In Test mode, MIMOASAS will load a pre-trained model, log its parameters, and score it.
     if (parameters.config['FEED_FORWARD']['Load_Model_Path']):
         model.load_model(parameters.config['FEED_FORWARD']['Load_Model_Path'])
 
-        print(model.results['optimized_model'].get_params())
+        # Nicely-formatted model parameters
+        logger.info('Model successfully loaded with the following parameters:')
+        for param, value in model.results['optimized_model'].get_params().items():
+            logger.info('{}: {}'.format(param, value))
+            logger.info('')
+
+        # Score the model's prediction performance on the test set.
         model.test(X_test, y_test)
+
+        # If feature selection is indicated in the CONFIG file, calculate the permutation importance
+        # of the input features.
+        # NOTE: A lower score means a higher permutation importance (model performed worse with that feature's values shuffled)
+        if (parameters.config['FEED_FORWARD']['Feature_Selection'] == 'True'):
+            perm_imps = model.permutation_importance(estimator=model.results['optimized_model'], X=X_test, y=y_test)
+            perm_imps = perm_imps.sort_values(by=[perm_imps.columns.values[1]], ascending=False)
+
+            # Log/report permutation importance scores for the partially-reduced feature set
+            pad = max(max(map(len, perm_imps.index.values)), len('Permuted Feature'))
+            logger.info('Permutation Importances of the input features:')
+            logger.info('{}  {}  {}'.format('Permuted Feature'.ljust(pad), 'Score', 'Confusion Matrix'))
+            for i in perm_imps.index:
+                logger.info(
+                    '{}: {}  {}'.format(
+                        str(i).rjust(pad),
+                        ('{:0.4f}'.format(perm_imps.loc[i, perm_imps.columns.values[1]])).rjust(6),
+                        str(perm_imps.loc[i, 'confusion_matrix']).replace('\n', ' ').replace('\r', '')
+                    )
+                )
+            logger.info('')
+
+        # Exit function execution
         logger.info('DONE')
         logger.info('')
         logger.info('')
         stop_logger(logger)
-        exit()
+        return None
 
     model.train(X_train, y_train)
     model.test(X_test, y_test)

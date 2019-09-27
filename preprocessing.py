@@ -51,12 +51,25 @@ def load_clean_data(parameters, logger, mode='TRAINING_DATA'):
         mode          - Optional  : Pull data from different locations in config file (Str)
     """
 
-    if (not os.path.exists(os.path.join(parameters.main_path, parameters.config[mode]['Background_Data']))):
-        data = pd.read_csv(os.path.join(parameters.main_path, parameters.config[mode]['Data']))
-    else:
-        data = background_correction(parameters, logger, mode)
+    # Loads background-corrected data if specified in CONFIG and background data file exists; otherwise loads raw input data
+    if ('background_correction' in parameters.config[mode]['Data_Options'].split(',')):
 
-    data.loc[:, 'utc-time'] = pd.to_datetime(data['time'], unit='s', utc=True)  # convert unix epoch time to utc
+        # If the file specified in CONFIG for Background Data does not exist, use the raw input data and issue warning
+        if (not os.path.exists(os.path.join(parameters.main_path, parameters.config[mode]['Background_Data']))):
+            data = pd.read_csv(os.path.join(parameters.main_path, parameters.config[mode]['Data']))
+            logger.warning('Background Correction has been specified in CONFIG, but the background data specified at')
+            logger.warning(parameters.config[mode]['Background_Data'])
+            logger.warning('does not exist.')
+            logger.warning('Loading input data WITHOUT background correction.')
+            logger.warning('')
+        
+        # Otherwise, background-correct the input data
+        else:
+            data = background_correction(parameters, logger, mode)
+    else:
+        data = pd.read_csv(os.path.join(parameters.main_path, parameters.config[mode]['Data']))
+
+    data.loc[:, 'utc-time'] = pd.to_datetime(data['time'], unit='s', utc=True)  # convert unix epoch time to utc.
 
     data_options = parameters.config[mode]['Data_Options'].split(',')
     cols_to_standardize = parameters.config[mode]['Cols_To_Standardize'].split(',')
@@ -156,7 +169,7 @@ def minmaxscale_features(data, columns):
 
     scaler = MinMaxScaler()
     scaled_data = scaler.fit_transform(data[columns])  # return numpy array
-    for idx, col in enumerate(columns):                        # replace original data
+    for idx, col in enumerate(columns):                # replace original data
         data.loc[:, col] = scaled_data[:, idx]
     return data
 
@@ -206,7 +219,7 @@ def remove_outliers(data, parameters, logger, mode):
     # Restore chronological indexing to match input data
     data = data_cleaned.sort_values(by=['time']).reset_index()
 
-    # Report culling statistics, if flagged with -v
+    # If in Verbose is set to True, report culling statistics
     if (parameters.config['MAIN']['Verbose'] == 'True'):
         logger.info('Cleaning statistics:')
         logger.info('{} total raw data points'.format(int(sum(full))))

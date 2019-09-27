@@ -1,3 +1,4 @@
+import os
 import pickle
 
 from sklearn.ensemble import RandomForestClassifier
@@ -85,8 +86,6 @@ class RandomForest:
 
         self.logger.info('Testing Random Forest')
         self.logger.info('')
-        if (self.parameters.config['RANDOM_FOREST']['Feature_Selection'] == 'True'):
-            X = self.select_features(X, y, mode='Test')
 
         self.results['test_score'] = self.model.score(X, y)
         self.results['test_confusion_matrix'] = confusion_matrix(y, self.model.predict(X))
@@ -94,6 +93,9 @@ class RandomForest:
         self.logger.info('Test score: ' + str(self.results['test_score']))
         self.logger.info('Test confusion matrix: ' + str(self.results['test_confusion_matrix']).replace('\n', ' ').replace('\r', ''))
         self.logger.info('')
+
+        if (self.parameters.config['RANDOM_FOREST']['Feature_Selection'] == 'True'):
+            self.select_features(X, y, mode='Test')
 
     def select_features(self, X, y, mode):
         """
@@ -114,6 +116,16 @@ class RandomForest:
             self.selected_features = sorted_features[:int(self.parameters.config['RANDOM_FOREST']['Features_To_Select'])]
             self.logger.info('Selected features: ' + str(self.selected_features))
             self.logger.info('')
+
+        if (mode == 'Test'):
+            cols_to_use = self.parameters.config['TEST_DATA']['Cols_To_Use'].split(',')
+            feature_importances = {cols_to_use[i]:self.model.best_estimator_.feature_importances_[i] for i in range(len(cols_to_use))}
+            sorted_features = [k for (k, v) in sorted(feature_importances.items(), key=lambda kv: kv[1], reverse=True)]
+            ## n Features selected
+            self.selected_features = sorted_features[:int(self.parameters.config['RANDOM_FOREST']['Features_To_Select'])]
+            self.logger.info('Top {} features: {}'.format(self.parameters.config['RANDOM_FOREST']['Features_To_Select'], str(self.selected_features)))
+            self.logger.info('')
+
         return X[self.selected_features]
 
     def save_model(self):
@@ -123,7 +135,7 @@ class RandomForest:
 
         self.logger.info('Saving Model')
         self.logger.info('')
-        pickle.dump(self.model, open(self.path + 'model.pkl', 'wb'))
+        pickle.dump(self.model, open(os.path.join(self.path, 'model.pkl'), 'wb'))
 
     def load_model(self, path):
         """

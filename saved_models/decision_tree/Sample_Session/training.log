@@ -1,0 +1,56 @@
+2019-09-26 17:43:22,652 [INFO] Multisource Input Model Output Security Analysis Suite (MIMOSAS) v1.0.0-release.1
+2019-09-26 17:43:22,652 [INFO] Copyright (C) 2019 University of California, Berkeley
+2019-09-26 17:43:22,652 [INFO] https://complexity.berkeley.edu/mimosas/
+2019-09-26 17:43:22,652 [INFO] 
+2019-09-26 17:43:22,652 [INFO] Running Decision Tree
+2019-09-26 17:43:22,652 [INFO] 
+2019-09-26 17:43:22,652 [INFO] Initializing Decision Tree
+2019-09-26 17:43:22,652 [INFO] Using Classifier Criterion: entropy
+2019-09-26 17:43:22,653 [INFO] 
+2019-09-26 17:43:22,653 [INFO] Preparing training/validation set data
+2019-09-26 17:43:22,653 [INFO] 
+2019-09-26 17:43:22,848 [INFO] Cleaning statistics:
+2019-09-26 17:43:22,849 [INFO] 8477 total raw data points
+2019-09-26 17:43:22,849 [INFO] 6459 data points after cleaning
+2019-09-26 17:43:22,849 [INFO] The fraction of each device's events removed by cleaning is:
+2019-09-26 17:43:22,849 [INFO] ID 12678: 0.2466
+2019-09-26 17:43:22,849 [INFO] ID  9474: 0.2258
+2019-09-26 17:43:22,849 [INFO] 
+2019-09-26 17:43:22,921 [INFO] Preparing test set data
+2019-09-26 17:43:22,921 [INFO] 
+2019-09-26 17:43:23,110 [INFO] Cleaning statistics:
+2019-09-26 17:43:23,111 [INFO] 8477 total raw data points
+2019-09-26 17:43:23,111 [INFO] 6459 data points after cleaning
+2019-09-26 17:43:23,111 [INFO] The fraction of each device's events removed by cleaning is:
+2019-09-26 17:43:23,111 [INFO] ID 12678: 0.2466
+2019-09-26 17:43:23,111 [INFO] ID  9474: 0.2258
+2019-09-26 17:43:23,111 [INFO] 
+2019-09-26 17:43:23,191 [INFO] Training Decision Tree
+2019-09-26 17:43:23,191 [INFO] 
+2019-09-26 17:43:24,046 [INFO] Best parameters: {'max_depth': 20}
+2019-09-26 17:43:24,046 [INFO] Best CV score: 0.2862415675511575
+2019-09-26 17:43:24,046 [INFO] Hyper parameters: [{'max_depth': 5}, {'max_depth': 10}, {'max_depth': 15}, {'max_depth': 20}, {'max_depth': 25}]
+2019-09-26 17:43:24,046 [INFO] CV mean train score: [0.2599398  0.7243397  0.95488527 0.99675738 0.99919285]
+2019-09-26 17:43:24,046 [INFO] CV mean validate score: [0.16283446 0.24818526 0.24082589 0.28624157 0.27349999]
+2019-09-26 17:43:24,046 [INFO] Feature importance: (0.2027659839557579, 'feature_09')
+2019-09-26 17:43:24,047 [INFO] Feature importance: (0.18700469913673187, 'feature_01')
+2019-09-26 17:43:24,047 [INFO] Feature importance: (0.1822560439253162, 'feature_04')
+2019-09-26 17:43:24,047 [INFO] Feature importance: (0.1234510978054558, 'feature_03')
+2019-09-26 17:43:24,047 [INFO] Feature importance: (0.115058591841883, 'feature_10')
+2019-09-26 17:43:24,047 [INFO] Feature importance: (0.0892634056824856, 'feature_08')
+2019-09-26 17:43:24,047 [INFO] Feature importance: (0.06338094137073656, 'feature_02')
+2019-09-26 17:43:24,047 [INFO] Feature importance: (0.018250159612289554, 'feature_05')
+2019-09-26 17:43:24,047 [INFO] Feature importance: (0.01464325259831525, 'feature_11')
+2019-09-26 17:43:24,047 [INFO] Feature importance: (0.0039258240710281405, 'feature_07')
+2019-09-26 17:43:24,047 [INFO] Feature importance: (0.0, 'feature_06')
+2019-09-26 17:43:24,047 [INFO] 
+2019-09-26 17:43:24,047 [INFO] Testing Decision Tree
+2019-09-26 17:43:24,047 [INFO] 
+2019-09-26 17:43:24,052 [INFO] Test score: 0.31121692032272746
+2019-09-26 17:43:24,053 [INFO] Test confusion matrix: [[1699   96]  [  90   53]]
+2019-09-26 17:43:24,053 [INFO] 
+2019-09-26 17:43:24,053 [INFO] Saving Model
+2019-09-26 17:43:24,053 [INFO] 
+2019-09-26 17:43:24,053 [INFO] DONE
+2019-09-26 17:43:24,053 [INFO] 
+2019-09-26 17:43:24,053 [INFO] 

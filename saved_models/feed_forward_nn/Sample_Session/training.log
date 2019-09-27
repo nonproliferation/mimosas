@@ -1,0 +1,43 @@
+2019-09-26 17:43:25,678 [INFO] Multisource Input Model Output Security Analysis Suite (MIMOSAS) v1.0.0-release.1
+2019-09-26 17:43:25,678 [INFO] Copyright (C) 2019 University of California, Berkeley
+2019-09-26 17:43:25,678 [INFO] https://complexity.berkeley.edu/mimosas/
+2019-09-26 17:43:25,678 [INFO] 
+2019-09-26 17:43:25,678 [INFO] Running Feed-Forward Neural Network
+2019-09-26 17:43:25,678 [INFO] 
+2019-09-26 17:43:25,679 [INFO] Preparing training/validation set data
+2019-09-26 17:43:25,679 [INFO] 
+2019-09-26 17:43:25,866 [INFO] Cleaning statistics:
+2019-09-26 17:43:25,867 [INFO] 8477 total raw data points
+2019-09-26 17:43:25,867 [INFO] 6459 data points after cleaning
+2019-09-26 17:43:25,867 [INFO] The fraction of each device's events removed by cleaning is:
+2019-09-26 17:43:25,867 [INFO] ID 12678: 0.2466
+2019-09-26 17:43:25,867 [INFO] ID  9474: 0.2258
+2019-09-26 17:43:25,867 [INFO] 
+2019-09-26 17:43:25,937 [INFO] Preparing test set data
+2019-09-26 17:43:25,937 [INFO] 
+2019-09-26 17:43:26,123 [INFO] Cleaning statistics:
+2019-09-26 17:43:26,123 [INFO] 8477 total raw data points
+2019-09-26 17:43:26,123 [INFO] 6459 data points after cleaning
+2019-09-26 17:43:26,123 [INFO] The fraction of each device's events removed by cleaning is:
+2019-09-26 17:43:26,123 [INFO] ID 12678: 0.2466
+2019-09-26 17:43:26,123 [INFO] ID  9474: 0.2258
+2019-09-26 17:43:26,124 [INFO] 
+2019-09-26 17:43:26,203 [INFO] Training Feed-Forward Neural Network
+2019-09-26 17:43:26,204 [INFO] 
+2019-09-26 17:43:29,560 [INFO] 0.12818 with {'activation': 'elu', 'batch_size': 1024, 'dropout_rate': 0.0, 'epochs': 25, 'layers': [25, 20], 'loss': 'categorical_crossentropy', 'lr': 0.002, 'n_features': 11, 'optimizer': 'adam'}
+2019-09-26 17:43:29,560 [INFO] Best parameters: {'activation': 'elu', 'batch_size': 1024, 'dropout_rate': 0.0, 'epochs': 25, 'layers': [25, 20], 'loss': 'categorical_crossentropy', 'lr': 0.002, 'n_features': 11, 'optimizer': 'adam'}
+2019-09-26 17:43:29,560 [INFO] Best CV score: 0.12817552994767678
+2019-09-26 17:43:29,561 [INFO] CV mean train score: [0.16001127]
+2019-09-26 17:43:29,561 [INFO] CV mean validate score: [0.12817553]
+2019-09-26 17:43:29,561 [INFO] 
+2019-09-26 17:43:29,561 [INFO] Testing Feed-Forward Neural Network
+2019-09-26 17:43:29,561 [INFO] 
+2019-09-26 17:43:29,617 [INFO] Test score: 0.9251806074743792
+2019-09-26 17:43:29,617 [INFO] Test MCC: 0.0741810518949246
+2019-09-26 17:43:29,623 [INFO] Test confusion matrix: [[1790    5]  [ 140    3]]
+2019-09-26 17:43:29,623 [INFO] 
+2019-09-26 17:43:29,623 [INFO] Saving Model
+2019-09-26 17:43:29,623 [INFO] 
+2019-09-26 17:43:29,680 [INFO] DONE
+2019-09-26 17:43:29,680 [INFO] 
+2019-09-26 17:43:29,680 [INFO] 
