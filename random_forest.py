@@ -1,6 +1,7 @@
 import os
 import pickle
 
+import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import matthews_corrcoef as mcc
 from sklearn.metrics import make_scorer
@@ -55,25 +56,23 @@ class RandomForest:
 
         self.logger.info('Training Random Forest')
         self.logger.info('')
-        # if (self.parameters.config['RANDOM_FOREST']['Feature_Selection'] == 'True'):
-        #     X = self.select_features(X, y, 'Train')
 
         self.models.fit(X, y)
+
         self.results['best_params'] = self.models.best_params_  # parameter setting that gave the best results on the hold out data.
         self.results['best_cv_score'] = self.models.best_score_  # mean cross-validated score of the best_estimator
         self.results['hyper_params'] = self.models.cv_results_['params']
         self.results['cv_mean_train_score'] = self.models.cv_results_['mean_train_score']  # average cross-validation training score
         self.results['cv_mean_validate_score'] = self.models.cv_results_['mean_test_score']  # avergage cross-validation validation score
-        self.results['feature_importances'] = sorted(zip(self.models.best_estimator_.feature_importances_, self.parameters.config['TRAINING_DATA']['Cols_To_Use'].split(',')), reverse=True)
-            
+   
         self.logger.info('Best parameters: ' + str(self.results['best_params']))
         self.logger.info('Best CV score: ' + str(self.results['best_cv_score']))
         self.logger.info('Hyper parameters: ' + str(self.results['hyper_params']))
         self.logger.info('CV mean train score: ' + str(self.results['cv_mean_train_score']))
         self.logger.info('CV mean validate score: ' + str(self.results['cv_mean_validate_score']))
-        for feature_importance in self.results['feature_importances']:
-            self.logger.info('Feature importance: ' + str(feature_importance))
-        self.logger.info('')
+
+        if (self.parameters.config['RANDOM_FOREST']['Feature_Selection'] == 'True'):
+            self.select_features(X, y)
 
     def test(self, X, y):
         """
@@ -95,38 +94,30 @@ class RandomForest:
         self.logger.info('')
 
         if (self.parameters.config['RANDOM_FOREST']['Feature_Selection'] == 'True'):
-            self.select_features(X, y, mode='Test')
+            self.select_features(X, y)
 
-    def select_features(self, X, y, mode):
+    def select_features(self, X, y):
         """
         Feature selection function - returns top n features if indicated in config file. Only runs in 'Train' mode
 
         @params:
             X       - Required  : Pandas dataframe containing input data (Dataframe)
             y       - Required  : Pandas dataframe containing label data (Dataframe)
-            mode    - Required  : Selection mode (Str)
         """
 
-        if (mode == 'Train'):
-            temp_model = self.estimator.fit(X, y)
-            cols_to_use = self.parameters.config['TRAINING_DATA']['Cols_To_Use'].split(',')
-            feature_importances = {cols_to_use[i]:temp_model.feature_importances_[i] for i in range(len(cols_to_use))}
-            sorted_features = [k for (k, v) in sorted(feature_importances.items(), key=lambda kv: kv[1], reverse=True)]
-            ## n Features selected
-            self.selected_features = sorted_features[:int(self.parameters.config['RANDOM_FOREST']['Features_To_Select'])]
-            self.logger.info('Selected features: ' + str(self.selected_features))
-            self.logger.info('')
+        # Calculate importances for the input features using the optimized estimator, and
+        # store them in a DataFrame sorted from most- to least-informative
+        self.results['feature_importances'] = pd.DataFrame(columns=['feature_importance'], index=self.parameters.config['TRAINING_DATA']['Cols_To_Use'].split(','))
+        self.results['feature_importances'].loc[:, 'feature_importance'] = self.models.best_estimator_.feature_importances_
+        self.results['feature_importances'].sort_values(by=['feature_importance'], ascending=False, inplace=True)
 
-        if (mode == 'Test'):
-            cols_to_use = self.parameters.config['TEST_DATA']['Cols_To_Use'].split(',')
-            feature_importances = {cols_to_use[i]:self.models.best_estimator_.feature_importances_[i] for i in range(len(cols_to_use))}
-            sorted_features = [k for (k, v) in sorted(feature_importances.items(), key=lambda kv: kv[1], reverse=True)]
-            ## n Features selected
-            self.selected_features = sorted_features[:int(self.parameters.config['RANDOM_FOREST']['Features_To_Select'])]
-            self.logger.info('Top {} features: {}'.format(self.parameters.config['RANDOM_FOREST']['Features_To_Select'], str(self.selected_features)))
-            self.logger.info('')
+        # Log/report feature importance scores
+        self.logger.info('{}  {}'.format('Feature'.ljust(11), 'Importance'))
+        for i in self.results['feature_importances'].index:
+            self.logger.info('{}: {:0.4f}'.format(i.rjust(11), self.results['feature_importances'].loc[i, 'feature_importance']))
+        self.logger.info('')
 
-        return X[self.selected_features]
+        return self.results['feature_importances']
 
     def save_models(self):
         """
