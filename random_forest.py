@@ -26,7 +26,7 @@ class RandomForest:
         # Random Forest Hyperparameters
         n_estimators = list(map(int, parameters.config['RANDOM_FOREST']['N_Estimators'].split(',')))
         max_depth = list(map(int, parameters.config['RANDOM_FOREST']['Depths'].split(',')))
-        cv = int(parameters.config['RANDOM_FOREST']['CV'])
+        cv = int(parameters.config['RANDOM_FOREST']['CV_Folds'])
         hyper_parameters = {'n_estimators': n_estimators, 'max_depth': max_depth}
         
         ## Parameters object used to load from config file

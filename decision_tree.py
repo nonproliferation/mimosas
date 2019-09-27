@@ -26,7 +26,7 @@ class DecisionTree:
 
         # Decision Tree Hyperparameters
         hyper_parameters = {'max_depth': list(map(int, parameters.config['DECISION_TREE']['Max_Depth'].split(',')))}
-        cv = int(parameters.config['DECISION_TREE']['CV'])
+        cv = int(parameters.config['DECISION_TREE']['CV_Folds'])
 
         ## Parameters object used to load from config file
         self.parameters = parameters
