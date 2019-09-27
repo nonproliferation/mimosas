@@ -141,7 +141,7 @@ def run_decision_tree(parameters):
     X_train, X_test, y_train, y_test = load_scramble_data(parameters, logger)
 
     # In Test mode, MIMOASAS will load a pre-trained model, log its parameters, and score it.
-    if (parameters.config['DECISION_TREE']['Load_Model_Path']):
+    if ('Test' in parameters.config['MAIN']['Mode']):
         model.load_model(parameters.config['DECISION_TREE']['Load_Model_Path'])
 
         # Score the model's prediction performance on the test set.
@@ -210,7 +210,7 @@ def run_random_forest(parameters):
     X_train, X_test, y_train, y_test = load_scramble_data(parameters, logger)
 
     # In Test mode, MIMOASAS will load a pre-trained model, log its parameters, and score it.
-    if (parameters.config['RANDOM_FOREST']['Load_Model_Path']):
+    if ('Test' in parameters.config['MAIN']['Mode']):
         model.load_model(parameters.config['RANDOM_FOREST']['Load_Model_Path'])
 
         # Score the model's prediction performance on the test set.
@@ -279,7 +279,7 @@ def run_feed_forward_nn(parameters):
     X_train, X_test, y_train, y_test = load_scramble_data(parameters, logger)
 
     # In Test mode, MIMOASAS will load a pre-trained model, log its parameters, and score it.
-    if (parameters.config['FEED_FORWARD']['Load_Model_Path']):
+    if ('Test' in parameters.config['MAIN']['Mode']):
         model.load_model(parameters.config['FEED_FORWARD']['Load_Model_Path'])
 
         # Nicely-formatted model parameters
