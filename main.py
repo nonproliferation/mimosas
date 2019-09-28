@@ -69,6 +69,25 @@ def stop_logger(logger):
     del logger
 
 
+def create_session_directory(algorithm):
+    """
+    Creates directory to hold files for this algorithm's execution session; returns its filepath
+    
+    @params:
+        algorithm  - Required  : name of the algorithm being run this session
+    """
+
+    # Path string based on UTC time (second precision) at the time of creation
+    session = datetime.datetime.utcnow().strftime('%Y_%b_%d_%Hh_%Mm_%Ss')
+    path = os.path.join('.', 'saved_models', algorithm, session)
+
+    # Create directory at path if it doesn't already exist
+    if not os.path.exists(path):
+        os.makedirs(path)
+
+    return path
+
+
 def main(main_path):
     """
     Parse command line arguments and run either train or test mode
@@ -103,64 +122,115 @@ def run_decision_tree(parameters):
         parameters   - Required  : parameter object containing parameters loaded from config file (Parameter)
     """
 
-    # If running in Test mode, check to make sure Load_Model_Path in CONFIG points to a loadable .pkl
-    if parameters.config['MAIN']['Mode'] == 'Test':
-        try:
-            pickle.load(open(parameters.config['DECISION_TREE']['Load_Model_Path'], 'rb'))
-        except:
-            print('There is no loadable model at', parameters.config['DECISION_TREE']['Load_Model_Path'])
-            print('Exiting.')
-            exit()
+    # Create session directory
+    path = create_session_directory('decision_tree')
 
-    # Generate session folder
-    session = datetime.datetime.utcnow().strftime('%Y_%b_%d_%Hh_%Mm_%Ss')
-    path = os.path.join('.', 'saved_models', 'decision_tree', session)
-    if not os.path.exists(path):
-        os.makedirs(path)
-
-    # Copy config file used as backup
+    # Copy session config file used as backup
     copyfile(parameters.config_file, os.path.join(path, 'used_conf.config'))
-
-    # If running in Test mode, copy in the loaded model and its training history; any results will be appended to this
-    if parameters.config['MAIN']['Mode'] == 'Test':
-        copyfile(parameters.config['DECISION_TREE']['Load_Model_Path'], os.path.join(path, os.path.basename(parameters.config['DECISION_TREE']['Load_Model_Path'])))
-        copyfile(os.path.join(os.path.dirname(parameters.config['DECISION_TREE']['Load_Model_Path']), 'training.log'), os.path.join(path, 'training.log'))
 
     # Create session logger
     logger = start_logger(os.path.join(path, 'training.log'))
     for line in header:
         logger.info(line)
     logger.info('')
-        
-    # Initialize model object
-    logger.info('Running Decision Tree')
-    logger.info('')
+
+    # Initialize models object
     models = DecisionTree(parameters, path, logger)
+
+    # Check for loadable models
+    if 'Train' in parameters.config['MAIN']['Mode'].split(','):
+
+        # If the Load_Model_Path parameter in CONFIG is left blank, don't bother trying to load a model.
+        if parameters.config['DECISION_TREE']['Load_Model_Path']:
+
+            # Try to load a model from the specified path.
+            try:
+                models.load_models(parameters.config['DECISION_TREE']['Load_Model_Path'])
+
+            # If load fails, train from scratch instead.
+            except:
+                logger.info('There is no loadable models object at: ' + parameters.config['DECISION_TREE']['Load_Model_Path'])
+                logger.info('MIMOSAS will train new model(s) from scratch.')
+                logger.info('')
+
+            # If load is successful, prepare to continue training.
+            else:
+
+                # Report successful load to terminal; this session's logfile will be overwritten with log from model's history.
+                print('Loadable models object found at', parameters.config['DECISION_TREE']['Load_Model_Path'])
+
+                # Copy loaded model to the session directory
+                copyfile(parameters.config['DECISION_TREE']['Load_Model_Path'], os.path.join(path, os.path.basename(parameters.config['DECISION_TREE']['Load_Model_Path'])))
+                
+                # Stop logger, overwrite logfile with the loaded models object's trainig history, and restart logger
+                stop_logger(logger)
+                copyfile(os.path.join(os.path.dirname(parameters.config['DECISION_TREE']['Load_Model_Path']), 'training.log'), os.path.join(path, 'training.log'))
+                logger = start_logger(os.path.join(path, 'training.log'))
+
+    else:
+        if 'Test' in parameters.config['MAIN']['Mode'].split(','):
+
+            # Try to load a model from the specified path.
+            try:
+                models.load_models(parameters.config['DECISION_TREE']['Load_Model_Path'])
+
+            # If load fails, exit function because there is nothing to test.
+            except:
+                logger.info('There is no loadable models object to test at: ' + parameters.config['DECISION_TREE']['Load_Model_Path'])
+                logger.info('Exiting Decision Tree.')
+                stop_logger(logger)
+                return None
+
+            # If load is successful, prepare to test.
+            else:
+
+                # Copy loaded model to the session directory
+                copyfile(parameters.config['DECISION_TREE']['Load_Model_Path'], os.path.join(path, os.path.basename(parameters.config['DECISION_TREE']['Load_Model_Path'])))
+                
+                # Stop logger, copy in the loaded models object's trainig history, and restart logger
+                stop_logger(logger)
+                copyfile(os.path.join(os.path.dirname(parameters.config['DECISION_TREE']['Load_Model_Path']), 'training.log'), os.path.join(path, 'training.log'))
+                logger = start_logger(os.path.join(path, 'training.log'))
+
+                # Report successful load
+                logger.info('Models object successfully loaded.')
 
     # Load data
     X_train, X_test, y_train, y_test = load_scramble_data(parameters, logger)
 
-    # In Test mode, MIMOASAS will load a pre-trained model, log its parameters, and score it.
+    # Train, if specified in CONFIG
+    if 'Train' in parameters.config['MAIN']['Mode'].split(','):
+
+        logger.info('Running DecisionTree in Train Mode.')
+        logger.info('')
+
+        models.train(X_train, y_train)
+
+        # Save model, if specified in CONFIG
+        # Note: Overwrites saved model (check if True)
+        if parameters.config['MAIN']['Save'] == 'True':
+            models.save_models()
+
+        # Exit Train Mode execution
+        logger.info('DONE TRAINING.')
+        logger.info('')
+        logger.info('')
+
+    # Test, if specified in CONFIG
     if ('Test' in parameters.config['MAIN']['Mode']):
-        models.load_models(parameters.config['DECISION_TREE']['Load_Model_Path'])
+
+        logger.info('Running DecisionTree in Test Mode.')
+        logger.info('')
 
         # Score the model's prediction performance on the test set.
         models.test(X_test, y_test)
         
-        # Exit execution
-        logger.info('DONE')
+        # Exit Test Mode execution
+        logger.info('DONE TESTING.')
         logger.info('')
         logger.info('')
-        stop_logger(logger)
-        return None
 
-    # If not in Test mode, do everything
-    models.train(X_train, y_train)
-    models.test(X_test, y_test)
-    models.save_models()
-    logger.info('DONE')
-    logger.info('')
-    logger.info('')
+    # Stop logger
     stop_logger(logger)
 
 
@@ -172,28 +242,11 @@ def run_random_forest(parameters):
         parameters   - Required  : parameter object containing parameters loaded from config file (Parameter)
     """
 
-    # If running in Test mode, check to make sure Load_Model_Path in CONFIG points to a loadable .pkl
-    if parameters.config['MAIN']['Mode'] == 'Test':
-        try:
-            pickle.load(open(parameters.config['RANDOM_FOREST']['Load_Model_Path'], 'rb'))
-        except:
-            print('There is no loadable model at', parameters.config['RANDOM_FOREST']['Load_Model_Path'])
-            print('Exiting.')
-            exit()
+    # Create session directory
+    path = create_session_directory('random_forest')
 
-    # Generate session folder
-    session = datetime.datetime.utcnow().strftime('%Y_%b_%d_%Hh_%Mm_%Ss')
-    path = os.path.join('.', 'saved_models', 'random_forest', session)
-    if not os.path.exists(path):
-        os.makedirs(path)
-
-    # Copy config file used as backup
+    # Copy session config file used as backup
     copyfile(parameters.config_file, os.path.join(path, 'used_conf.config'))
-
-    # If running in Test mode, copy in the loaded model and its training history; any results will be appended to this
-    if parameters.config['MAIN']['Mode'] == 'Test':
-        copyfile(parameters.config['RANDOM_FOREST']['Load_Model_Path'], os.path.join(path, os.path.basename(parameters.config['RANDOM_FOREST']['Load_Model_Path'])))
-        copyfile(os.path.join(os.path.dirname(parameters.config['RANDOM_FOREST']['Load_Model_Path']), 'training.log'), os.path.join(path, 'training.log'))
 
     # Create session logger
     logger = start_logger(os.path.join(path, 'training.log'))
@@ -201,35 +254,104 @@ def run_random_forest(parameters):
         logger.info(line)
     logger.info('')
 
-    # Initialize model object
-    logger.info('Running Random Forest')
-    logger.info('')
+    # Initialize models object
     models = RandomForest(parameters, path, logger)
+
+    # Check for loadable models
+    if 'Train' in parameters.config['MAIN']['Mode'].split(','):
+
+        # If the Load_Model_Path parameter in CONFIG is left blank, don't bother trying to load a model.
+        if parameters.config['RANDOM_FOREST']['Load_Model_Path']:
+
+            # Try to load a model from the specified path.
+            try:
+                models.load_models(parameters.config['RANDOM_FOREST']['Load_Model_Path'])
+
+            # If load fails, train from scratch instead.
+            except:
+                logger.info('There is no loadable models object at: ' + parameters.config['RANDOM_FOREST']['Load_Model_Path'])
+                logger.info('MIMOSAS will train new model(s) from scratch.')
+                logger.info('')
+
+            # If load is successful, prepare to continue training.
+            else:
+
+                # Copy loaded model to the session directory
+                copyfile(parameters.config['RANDOM_FOREST']['Load_Model_Path'], os.path.join(path, os.path.basename(parameters.config['RANDOM_FOREST']['Load_Model_Path'])))
+                
+                # Stop logger, overwrite logfile with the loaded models object's trainig history, and restart logger
+                stop_logger(logger)
+                copyfile(os.path.join(os.path.dirname(parameters.config['RANDOM_FOREST']['Load_Model_Path']), 'training.log'), os.path.join(path, 'training.log'))
+                logger = start_logger(os.path.join(path, 'training.log'))
+
+    else:
+        if 'Test' in parameters.config['MAIN']['Mode'].split(','):
+
+            # Try to load a model from the specified path.
+            try:
+                models.load_models(parameters.config['RANDOM_FOREST']['Load_Model_Path'])
+
+            # If load fails, exit function because there is nothing to test.
+            except:
+                logger.info('There is no loadable models object to test at: ' + parameters.config['RANDOM_FOREST']['Load_Model_Path'])
+                logger.info('Exiting Random Forest.')
+                stop_logger(logger)
+                return None
+
+
+            # If load is successful, prepare to test.
+            else:
+
+                # Report successful load to terminal; this session's logfile will be overwritten with log from model's history.
+                print('Loadable models object found at', parameters.config['RANDOM_FOREST']['Load_Model_Path'])
+
+                # Copy loaded model to the session directory
+                copyfile(parameters.config['RANDOM_FOREST']['Load_Model_Path'], os.path.join(path, os.path.basename(parameters.config['RANDOM_FOREST']['Load_Model_Path'])))
+                
+                # Stop logger, copy in the loaded models object's trainig history, and restart logger
+                stop_logger(logger)
+                copyfile(os.path.join(os.path.dirname(parameters.config['RANDOM_FOREST']['Load_Model_Path']), 'training.log'), os.path.join(path, 'training.log'))
+                logger = start_logger(os.path.join(path, 'training.log'))
+
+                # Report successful load
+                logger.info('Models object successfully loaded.')
 
     # Load data
     X_train, X_test, y_train, y_test = load_scramble_data(parameters, logger)
 
-    # In Test mode, MIMOASAS will load a pre-trained model, log its parameters, and score it.
+    # Train, if specified in CONFIG
+    if 'Train' in parameters.config['MAIN']['Mode'].split(','):
+
+        logger.info('Running RandomForest in Train Mode.')
+        logger.info('')
+
+        models.train(X_train, y_train)
+
+        # Save model, if specified in CONFIG
+        # Note: Overwrites saved model (check if True)
+        if parameters.config['MAIN']['Save'] == 'True':
+            models.save_models()
+
+        # Exit Train Mode execution
+        logger.info('DONE TRAINING.')
+        logger.info('')
+        logger.info('')
+
+    # Test, if specified in CONFIG
     if ('Test' in parameters.config['MAIN']['Mode']):
-        models.load_models(parameters.config['RANDOM_FOREST']['Load_Model_Path'])
+
+        logger.info('Running RandomForest in Test Mode.')
+        logger.info('')
 
         # Score the model's prediction performance on the test set.
         models.test(X_test, y_test)
         
-        # Exit execution
-        logger.info('DONE')
+        # Exit Test Mode execution
+        logger.info('DONE TESTING.')
         logger.info('')
         logger.info('')
-        stop_logger(logger)
-        return None
 
-    # If not in Test mode, do everything
-    models.train(X_train, y_train)
-    models.test(X_test, y_test)
-    models.save_models()
-    logger.info('DONE')
-    logger.info('')
-    logger.info('')
+    # Stop logger
     stop_logger(logger)
 
 
@@ -241,97 +363,124 @@ def run_feed_forward_nn(parameters):
         parameters   - Required  : parameter object containing parameters loaded from config file (Parameter)
     """
 
-    # If running in Test mode, check to make sure Load_Model_Path in CONFIG points to a loadable .pkl
-    if parameters.config['MAIN']['Mode'] == 'Test':
-        try:
-            pickle.load(open(parameters.config['FEED_FORWARD']['Load_Model_Path'], 'rb'))
-        except:
-            print('There is no loadable model at', parameters.config['FEED_FORWARD']['Load_Model_Path'])
-            print('Exiting.')
-            exit()
+    # Create session directory
+    path = create_session_directory('feed_forward_nn')
 
-    # Generate session folder
-    session = datetime.datetime.utcnow().strftime('%Y_%b_%d_%Hh_%Mm_%Ss')
-    path = os.path.join('.', 'saved_models', 'feed_forward_nn', session)
-    if not os.path.exists(path):
-        os.makedirs(path)
-    
-    # Copy config file used for records
+    # Copy session config file used as backup
     copyfile(parameters.config_file, os.path.join(path, 'used_conf.config'))
 
-    # If running in Test mode, copy in the loaded model and its training history; any results will be appended to this
-    if parameters.config['MAIN']['Mode'] == 'Test':
-        copyfile(parameters.config['FEED_FORWARD']['Load_Model_Path'], os.path.join(path, os.path.basename(parameters.config['FEED_FORWARD']['Load_Model_Path'])))
-        copyfile(os.path.join(os.path.dirname(parameters.config['FEED_FORWARD']['Load_Model_Path']), 'training.log'), os.path.join(path, 'training.log'))
-
-    # Create session logger; if in Test mode, the logger appends to the existing logfile.
+    # Create session logger
     logger = start_logger(os.path.join(path, 'training.log'))
     for line in header:
         logger.info(line)
     logger.info('')
-        
-    # Initialize model object
-    logger.info('Running Feed-Forward Neural Network')
-    logger.info('')
+
+    # Initialize models object
     models = FeedForwardNN(parameters, path, logger)
+
+    # Check for loadable models
+    if 'Train' in parameters.config['MAIN']['Mode'].split(','):
+
+        # If the Load_Model_Path parameter in CONFIG is left blank, don't bother trying to load a model.
+        if parameters.config['FEED_FORWARD']['Load_Model_Path']:
+
+            # Try to load a model from the specified path.
+            try:
+                models.load_models(parameters.config['FEED_FORWARD']['Load_Model_Path'])
+
+            # If load fails, train from scratch instead.
+            except:
+                logger.info('There is no loadable models object at: ' + parameters.config['FEED_FORWARD']['Load_Model_Path'])
+                logger.info('MIMOSAS will train new model(s) from scratch.')
+                logger.info('')
+
+            # If load is successful, prepare to continue training.
+            else:
+
+                # Copy loaded model to the session directory
+                copyfile(parameters.config['FEED_FORWARD']['Load_Model_Path'], os.path.join(path, os.path.basename(parameters.config['FEED_FORWARD']['Load_Model_Path'])))
+                
+                # Stop logger, overwrite logfile with the loaded models object's trainig history, and restart logger
+                stop_logger(logger)
+                copyfile(os.path.join(os.path.dirname(parameters.config['FEED_FORWARD']['Load_Model_Path']), 'training.log'), os.path.join(path, 'training.log'))
+                logger = start_logger(os.path.join(path, 'training.log'))
+
+                # Report successful load
+                logger.info('Models object successfully loaded.')
+
+    else:
+        if 'Test' in parameters.config['MAIN']['Mode'].split(','):
+
+            # Try to load a model from the specified path.
+            try:
+                models.load_models(parameters.config['FEED_FORWARD']['Load_Model_Path'])
+
+            # If load fails, exit function because there is nothing to test.
+            except:
+                logger.info('There is no loadable models object to test at: ' + parameters.config['FEED_FORWARD']['Load_Model_Path'])
+                logger.info('Exiting FeedForwardNN.')
+                stop_logger(logger)
+                return None
+
+
+            # If load is successful, prepare to test.
+            else:
+
+                # Copy loaded model to the session directory
+                copyfile(parameters.config['FEED_FORWARD']['Load_Model_Path'], os.path.join(path, os.path.basename(parameters.config['FEED_FORWARD']['Load_Model_Path'])))
+                
+                # Stop logger, copy in the loaded models object's trainig history, and restart logger
+                stop_logger(logger)
+                copyfile(os.path.join(os.path.dirname(parameters.config['FEED_FORWARD']['Load_Model_Path']), 'training.log'), os.path.join(path, 'training.log'))
+                logger = start_logger(os.path.join(path, 'training.log'))
+
+                # Nicely-formatted parameters of the most successful classifier in the loaded models object
+                logger.info('Models successfully loaded; the best-performing model has the following parameters:')
+                for param, value in models.models.best_estimator_.get_params().items():
+                    logger.info('{}: {}'.format(param, value))
+                logger.info('')
 
     # Load data
     X_train, X_test, y_train, y_test = load_scramble_data(parameters, logger)
 
-    # In Test mode, MIMOASAS will load a pre-trained model, log its parameters, and score it.
-    if ('Test' in parameters.config['MAIN']['Mode']):
-        models.load_models(parameters.config['FEED_FORWARD']['Load_Model_Path'])
+    # Train, if specified in CONFIG
+    if 'Train' in parameters.config['MAIN']['Mode'].split(','):
 
-        # Nicely-formatted parameters of the most successful classifier in the loaded models object
-        logger.info('Models successfully loaded; the best-performing model has the following parameters:')
-        for param, value in models.models.best_estimator_.get_params().items():
-            logger.info('{}: {}'.format(param, value))
+        logger.info('Running FeedForwardNN in Train Mode.')
+        logger.info('')
+
+        models.train(X_train, y_train)
+
+        # Save model, if specified in CONFIG
+        # Note: Overwrites saved model (check if True)
+        if parameters.config['MAIN']['Save'] == 'True':
+            models.save_models()
+
+        logger.info('DONE TRAINING.')
+        logger.info('')
+        logger.info('')
+
+    # Test, if specified in CONFIG
+    if ('Test' in parameters.config['MAIN']['Mode']):
+
+        logger.info('Running FeedForwardNN in Test Mode.')
         logger.info('')
 
         # Score the model's prediction performance on the test set.
         models.test(X_test, y_test)
 
-        # If feature selection is indicated in the CONFIG file, calculate the permutation importance
-        # of the input features.
-        # NOTE: A lower score means a higher permutation importance (model performed worse with that feature's values shuffled)
+        # If feature selection is indicated in the CONFIG file, use the RFA and RFE
+        # algorithms to quantify model performance as a function of input feature set
         if (parameters.config['FEED_FORWARD']['Feature_Selection'] == 'True'):
-            perm_imps = models.permutation_importance(estimator=models.models.best_estimator_, X=X_test, y=y_test)
-            perm_imps = perm_imps.sort_values(by=[perm_imps.columns.values[1]], ascending=False)
-
-            # Log/report permutation importance scores for the partially-reduced feature set
-            pad = max(max(map(len, perm_imps.index.values)), len('Permuted Feature'))
-            logger.info('Permutation Importances of the input features:')
-            logger.info('{}  {}  {}'.format('Permuted Feature'.ljust(pad), 'Score', 'Confusion Matrix'))
-            for i in perm_imps.index:
-                logger.info(
-                    '{}: {}  {}'.format(
-                        str(i).rjust(pad),
-                        ('{:0.4f}'.format(perm_imps.loc[i, perm_imps.columns.values[1]])).rjust(6),
-                        str(perm_imps.loc[i, 'confusion_matrix']).replace('\n', ' ').replace('\r', '')
-                    )
-                )
-            logger.info('')
-
-        # Exit function execution
-        logger.info('DONE')
+            models.recursive_feature_addition(X_train, X_test, y_train, y_test)
+            models.recursive_feature_elimination(X_train, X_test, y_train, y_test)
+        
+        # Exit execution
+        logger.info('DONE TESTING.')
         logger.info('')
         logger.info('')
-        stop_logger(logger)
-        return None
 
-    models.train(X_train, y_train)
-    models.test(X_test, y_test)
-    models.save_models()
-
-    # If feature selection is indicated in the CONFIG file, use the RFA and RFE
-    # algorithms to quantify model performance as a function of input feature set
-    if (parameters.config['FEED_FORWARD']['Feature_Selection'] == 'True'):
-        models.recursive_feature_addition(X_train, X_test, y_train, y_test)
-        models.recursive_feature_elimination(X_train, X_test, y_train, y_test)
-
-    logger.info('DONE')
-    logger.info('')
-    logger.info('')
+    # Stop logger
     stop_logger(logger)
 
 
