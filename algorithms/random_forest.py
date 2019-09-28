@@ -1,9 +1,14 @@
+import os
+import pickle
+
+import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import matthews_corrcoef as mcc
 from sklearn.metrics import make_scorer
+from sklearn.metrics import confusion_matrix
+from sklearn.metrics import r2_score
 from sklearn.model_selection import GridSearchCV
-from sklearn.metrics import confusion_matrix, r2_score
-import pickle
+
 
 ## Random Forest algorithm
 class RandomForest:
@@ -18,11 +23,11 @@ class RandomForest:
         """
         ## Logger used to log to console and log file
         self.logger = logger
-        
+
         # Random Forest Hyperparameters
         n_estimators = list(map(int, parameters.config['RANDOM_FOREST']['N_Estimators'].split(',')))
         max_depth = list(map(int, parameters.config['RANDOM_FOREST']['Depths'].split(',')))
-        cv = int(parameters.config['RANDOM_FOREST']['CV'])
+        cv = int(parameters.config['RANDOM_FOREST']['CV_Folds'])
         hyper_parameters = {'n_estimators': n_estimators, 'max_depth': max_depth}
         
         ## Parameters object used to load from config file
@@ -32,14 +37,14 @@ class RandomForest:
         ## Scikit-Learn estimator used for classification
         self.estimator = RandomForestClassifier(criterion=parameters.config['RANDOM_FOREST']['Classifier_Criterion'])
         ## Grid Search model for hyperparameter tuning
-        self.model = GridSearchCV(self.estimator, hyper_parameters, scoring=make_scorer(mcc), cv=cv, return_train_score=True)
+        self.models = GridSearchCV(self.estimator, hyper_parameters, scoring=make_scorer(mcc), cv=cv, return_train_score=True)
         ## Dictionary to store training results
         self.results = {}
         
         self.logger.info('Initializing Random Forest')
         self.logger.info('Using Classifier Criterion: ' + parameters.config['RANDOM_FOREST']['Classifier_Criterion'])
         self.logger.info('')
-        
+
     def train(self, X, y):
         """
         Run train mode for Random Forest
@@ -48,28 +53,27 @@ class RandomForest:
             X       - Required  : Pandas dataframe containing input data (Dataframe)
             y       - Required  : Pandas dataframe containing label data (Dataframe)
         """
+
         self.logger.info('Training Random Forest')
         self.logger.info('')
-        if (self.parameters.config['RANDOM_FOREST']['Feature_Selection'] == 'True'):
-            X = self.select_features(X, y, 'Train')
-        
-        self.model.fit(X, y)
-        self.results['best_params'] = self.model.best_params_  # parameter setting that gave the best results on the hold out data.
-        self.results['best_cv_score'] = self.model.best_score_  # mean cross-validated score of the best_estimator
-        self.results['hyper_params'] = self.model.cv_results_['params']
-        self.results['cv_mean_train_score'] = self.model.cv_results_['mean_train_score']  # average cross-validation training score
-        self.results['cv_mean_validate_score'] = self.model.cv_results_['mean_test_score']  # avergage cross-validation validation score
-        self.results['feature_importances'] = sorted(zip(self.model.best_estimator_.feature_importances_, self.parameters.config['TRAINING_DATA']['Cols_To_Use'].split(',')), reverse=True)
-            
+
+        self.models.fit(X, y)
+
+        self.results['best_params'] = self.models.best_params_  # parameter setting that gave the best results on the hold out data.
+        self.results['best_cv_score'] = self.models.best_score_  # mean cross-validated score of the best_estimator
+        self.results['hyper_params'] = self.models.cv_results_['params']
+        self.results['cv_mean_train_score'] = self.models.cv_results_['mean_train_score']  # average cross-validation training score
+        self.results['cv_mean_validate_score'] = self.models.cv_results_['mean_test_score']  # avergage cross-validation validation score
+   
         self.logger.info('Best parameters: ' + str(self.results['best_params']))
         self.logger.info('Best CV score: ' + str(self.results['best_cv_score']))
         self.logger.info('Hyper parameters: ' + str(self.results['hyper_params']))
         self.logger.info('CV mean train score: ' + str(self.results['cv_mean_train_score']))
         self.logger.info('CV mean validate score: ' + str(self.results['cv_mean_validate_score']))
-        for feature_importance in self.results['feature_importances']:
-            self.logger.info('Feature importance: ' + str(feature_importance))
-        self.logger.info('')
-        
+
+        if (self.parameters.config['RANDOM_FOREST']['Feature_Selection'] == 'True'):
+            self.select_features(X, y)
+
     def test(self, X, y):
         """
         Run test mode for Random Forest
@@ -78,55 +82,61 @@ class RandomForest:
             X       - Required  : Pandas dataframe containing input data (Dataframe)
             y       - Required  : Pandas dataframe containing label data (Dataframe)
         """
+
         self.logger.info('Testing Random Forest')
         self.logger.info('')
-        if (self.parameters.config['RANDOM_FOREST']['Feature_Selection'] == 'True'):
-            X = self.select_features(X, y, mode='Test')
 
-        self.results['test_score'] = self.model.score(X, y)
-        self.results['test_confusion_matrix'] = confusion_matrix(y, self.model.predict(X))
+        self.results['test_score'] = self.models.score(X, y)
+        self.results['test_confusion_matrix'] = confusion_matrix(y, self.models.predict(X))
         
         self.logger.info('Test score: ' + str(self.results['test_score']))
         self.logger.info('Test confusion matrix: ' + str(self.results['test_confusion_matrix']).replace('\n', ' ').replace('\r', ''))
         self.logger.info('')
-            
-    def select_features(self, X, y, mode):
+
+        if (self.parameters.config['RANDOM_FOREST']['Feature_Selection'] == 'True'):
+            self.select_features(X, y)
+
+    def select_features(self, X, y):
         """
         Feature selection function - returns top n features if indicated in config file. Only runs in 'Train' mode
 
         @params:
             X       - Required  : Pandas dataframe containing input data (Dataframe)
             y       - Required  : Pandas dataframe containing label data (Dataframe)
-            mode    - Required  : Selection mode (Str)
         """
-        if (mode == 'Train'):
-            temp_model = self.estimator.fit(X, y)
-            cols_to_use = self.parameters.config['TRAINING_DATA']['Cols_To_Use'].split(',')
-            feature_importances = {cols_to_use[i]:temp_model.feature_importances_[i] for i in range(len(cols_to_use))}
-            sorted_features = [k for (k, v) in sorted(feature_importances.items(), key=lambda kv: kv[1], reverse=True)]
-            ## n Features selected
-            self.selected_features = sorted_features[:int(self.parameters.config['RANDOM_FOREST']['Features_To_Select'])]
-            self.logger.info('Selected features: ' + str(self.selected_features))
-            self.logger.info('')
-        return X[self.selected_features]
 
-    def save_model(self):
-        """
-        Save model pickle
-        """
-        self.logger.info('Saving Model')
+        # Calculate importances for the input features using the optimized estimator, and
+        # store them in a DataFrame sorted from most- to least-informative
+        self.results['feature_importances'] = pd.DataFrame(columns=['feature_importance'], index=self.parameters.config['TRAINING_DATA']['Cols_To_Use'].split(','))
+        self.results['feature_importances'].loc[:, 'feature_importance'] = self.models.best_estimator_.feature_importances_
+        self.results['feature_importances'].sort_values(by=['feature_importance'], ascending=False, inplace=True)
+
+        # Log/report feature importance scores
+        self.logger.info('{}  {}'.format('Feature'.ljust(11), 'Importance'))
+        for i in self.results['feature_importances'].index:
+            self.logger.info('{}: {:0.4f}'.format(i.rjust(11), self.results['feature_importances'].loc[i, 'feature_importance']))
         self.logger.info('')
-        pickle.dump(self.model, open(self.path + 'model.pkl', 'wb'))
- 
-    def load_model(self, path):
+
+        return self.results['feature_importances']
+
+    def save_models(self):
         """
-        Load model - called for evaluation mode
-        
+        Save models object with pickle serialization
+        """
+
+        self.logger.info('Saving Models')
+        self.logger.info('')
+        pickle.dump(self.models, open(os.path.join(self.path, 'models.pkl'), 'wb'))
+
+    def load_models(self, path):
+        """
+        Load pickle-serialized models object
+
         @params:
-            path          - Required  : Path to where model is stored (Str)
+            path          - Required  : Path to where models object is stored (Str)
         """
-        # load the model from disk
-        self.logger.info('Loading Model')
+
+        # Load the models object from disk
+        self.logger.info('Loading Models')
         self.logger.info('')
-        self.model = pickle.load(open(path, 'rb'))
-        
+        self.models = pickle.load(open(path, 'rb'))

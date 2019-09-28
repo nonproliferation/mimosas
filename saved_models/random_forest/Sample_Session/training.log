@@ -1,0 +1,80 @@
+2019-09-27 21:46:50,401 [INFO] Multisource Input Model Output Security Analysis Suite (MIMOSAS) v1.0.0-release.1
+2019-09-27 21:46:50,401 [INFO] Copyright (C) 2019 University of California, Berkeley
+2019-09-27 21:46:50,401 [INFO] https://complexity.berkeley.edu/mimosas/
+2019-09-27 21:46:50,402 [INFO] 
+2019-09-27 21:46:50,402 [INFO] Initializing Random Forest
+2019-09-27 21:46:50,402 [INFO] Using Classifier Criterion: entropy
+2019-09-27 21:46:50,402 [INFO] 
+2019-09-27 21:46:50,402 [INFO] Loading Models
+2019-09-27 21:46:50,402 [INFO] 
+2019-09-27 21:46:50,402 [INFO] There is no loadable models object at: ./saved_models/random_forest/Sample_Session/models.pkl
+2019-09-27 21:46:50,402 [INFO] MIMOSAS will train new model(s) from scratch.
+2019-09-27 21:46:50,402 [INFO] 
+2019-09-27 21:46:50,402 [INFO] Preparing training/validation set data
+2019-09-27 21:46:50,402 [INFO] 
+2019-09-27 21:46:50,570 [INFO] Cleaning statistics:
+2019-09-27 21:46:50,570 [INFO] 8477 total raw data points
+2019-09-27 21:46:50,570 [INFO] 6459 data points after cleaning
+2019-09-27 21:46:50,570 [INFO] The fraction of each device's events removed by cleaning is:
+2019-09-27 21:46:50,571 [INFO] ID 12678: 0.2466
+2019-09-27 21:46:50,571 [INFO] ID  9474: 0.2258
+2019-09-27 21:46:50,571 [INFO] 
+2019-09-27 21:46:50,614 [INFO] Preparing test set data
+2019-09-27 21:46:50,614 [INFO] 
+2019-09-27 21:46:50,779 [INFO] Cleaning statistics:
+2019-09-27 21:46:50,779 [INFO] 8477 total raw data points
+2019-09-27 21:46:50,779 [INFO] 6459 data points after cleaning
+2019-09-27 21:46:50,779 [INFO] The fraction of each device's events removed by cleaning is:
+2019-09-27 21:46:50,779 [INFO] ID 12678: 0.2466
+2019-09-27 21:46:50,779 [INFO] ID  9474: 0.2258
+2019-09-27 21:46:50,779 [INFO] 
+2019-09-27 21:46:50,830 [INFO] Running RandomForest in Train Mode.
+2019-09-27 21:46:50,830 [INFO] 
+2019-09-27 21:46:50,830 [INFO] Training Random Forest
+2019-09-27 21:46:50,830 [INFO] 
+2019-09-27 21:46:52,031 [INFO] Best parameters: {'max_depth': 4, 'n_estimators': 50}
+2019-09-27 21:46:52,031 [INFO] Best CV score: 0.0
+2019-09-27 21:46:52,031 [INFO] Hyper parameters: [{'max_depth': 4, 'n_estimators': 50}]
+2019-09-27 21:46:52,031 [INFO] CV mean train score: [0.]
+2019-09-27 21:46:52,031 [INFO] CV mean validate score: [0.]
+2019-09-27 21:46:52,034 [INFO] Feature      Importance
+2019-09-27 21:46:52,034 [INFO]  feature_09: 0.2816
+2019-09-27 21:46:52,034 [INFO]  feature_01: 0.2443
+2019-09-27 21:46:52,034 [INFO]  feature_04: 0.1173
+2019-09-27 21:46:52,035 [INFO]  feature_03: 0.1022
+2019-09-27 21:46:52,035 [INFO]  feature_08: 0.0866
+2019-09-27 21:46:52,035 [INFO]  feature_02: 0.0685
+2019-09-27 21:46:52,035 [INFO]  feature_10: 0.0663
+2019-09-27 21:46:52,035 [INFO]  feature_05: 0.0152
+2019-09-27 21:46:52,035 [INFO]  feature_07: 0.0134
+2019-09-27 21:46:52,035 [INFO]  feature_11: 0.0046
+2019-09-27 21:46:52,035 [INFO]  feature_06: 0.0000
+2019-09-27 21:46:52,035 [INFO] 
+2019-09-27 21:46:52,035 [INFO] Saving Models
+2019-09-27 21:46:52,035 [INFO] 
+2019-09-27 21:46:52,037 [INFO] DONE TRAINING.
+2019-09-27 21:46:52,037 [INFO] 
+2019-09-27 21:46:52,037 [INFO] 
+2019-09-27 21:46:52,037 [INFO] Running RandomForest in Test Mode.
+2019-09-27 21:46:52,037 [INFO] 
+2019-09-27 21:46:52,037 [INFO] Testing Random Forest
+2019-09-27 21:46:52,037 [INFO] 
+2019-09-27 21:46:52,053 [INFO] Test score: 0.0
+2019-09-27 21:46:52,053 [INFO] Test confusion matrix: [[1795    0]  [ 143    0]]
+2019-09-27 21:46:52,053 [INFO] 
+2019-09-27 21:46:52,056 [INFO] Feature      Importance
+2019-09-27 21:46:52,056 [INFO]  feature_09: 0.2816
+2019-09-27 21:46:52,056 [INFO]  feature_01: 0.2443
+2019-09-27 21:46:52,056 [INFO]  feature_04: 0.1173
+2019-09-27 21:46:52,056 [INFO]  feature_03: 0.1022
+2019-09-27 21:46:52,057 [INFO]  feature_08: 0.0866
+2019-09-27 21:46:52,057 [INFO]  feature_02: 0.0685
+2019-09-27 21:46:52,057 [INFO]  feature_10: 0.0663
+2019-09-27 21:46:52,057 [INFO]  feature_05: 0.0152
+2019-09-27 21:46:52,057 [INFO]  feature_07: 0.0134
+2019-09-27 21:46:52,057 [INFO]  feature_11: 0.0046
+2019-09-27 21:46:52,057 [INFO]  feature_06: 0.0000
+2019-09-27 21:46:52,057 [INFO] 
+2019-09-27 21:46:52,057 [INFO] DONE TESTING.
+2019-09-27 21:46:52,057 [INFO] 
+2019-09-27 21:46:52,057 [INFO] 
