@@ -10,9 +10,9 @@ import numpy as np
 
 from preprocessing import load_scramble_data
 from parameter_parser import Parameters
-from decision_tree import DecisionTree
-from random_forest import RandomForest
-from feed_forward_nn import FeedForwardNN
+from algorithms.decision_tree import DecisionTree
+from algorithms.random_forest import RandomForest
+from algorithms.feed_forward_nn import FeedForwardNN
 
 
 # Mute CPU- and OS-specific warnings from TensorFlow backend of FeedForwardNN
@@ -162,10 +162,8 @@ def run_decision_tree(parameters):
                 # Copy loaded model to the session directory
                 copyfile(parameters.config['DECISION_TREE']['Load_Model_Path'], os.path.join(path, os.path.basename(parameters.config['DECISION_TREE']['Load_Model_Path'])))
                 
-                # Stop logger, overwrite logfile with the loaded models object's trainig history, and restart logger
-                stop_logger(logger)
+                # Copy loaded training log
                 copyfile(os.path.join(os.path.dirname(parameters.config['DECISION_TREE']['Load_Model_Path']), 'training.log'), os.path.join(path, 'training.log'))
-                logger = start_logger(os.path.join(path, 'training.log'))
 
     else:
         if 'Test' in parameters.config['MAIN']['Mode'].split(','):
@@ -187,10 +185,8 @@ def run_decision_tree(parameters):
                 # Copy loaded model to the session directory
                 copyfile(parameters.config['DECISION_TREE']['Load_Model_Path'], os.path.join(path, os.path.basename(parameters.config['DECISION_TREE']['Load_Model_Path'])))
                 
-                # Stop logger, copy in the loaded models object's trainig history, and restart logger
-                stop_logger(logger)
+                # Copy loaded training log
                 copyfile(os.path.join(os.path.dirname(parameters.config['DECISION_TREE']['Load_Model_Path']), 'training.log'), os.path.join(path, 'training.log'))
-                logger = start_logger(os.path.join(path, 'training.log'))
 
                 # Report successful load
                 logger.info('Models object successfully loaded.')
@@ -279,10 +275,8 @@ def run_random_forest(parameters):
                 # Copy loaded model to the session directory
                 copyfile(parameters.config['RANDOM_FOREST']['Load_Model_Path'], os.path.join(path, os.path.basename(parameters.config['RANDOM_FOREST']['Load_Model_Path'])))
                 
-                # Stop logger, overwrite logfile with the loaded models object's trainig history, and restart logger
-                stop_logger(logger)
+                # Copy loaded training log
                 copyfile(os.path.join(os.path.dirname(parameters.config['RANDOM_FOREST']['Load_Model_Path']), 'training.log'), os.path.join(path, 'training.log'))
-                logger = start_logger(os.path.join(path, 'training.log'))
 
     else:
         if 'Test' in parameters.config['MAIN']['Mode'].split(','):
@@ -308,10 +302,8 @@ def run_random_forest(parameters):
                 # Copy loaded model to the session directory
                 copyfile(parameters.config['RANDOM_FOREST']['Load_Model_Path'], os.path.join(path, os.path.basename(parameters.config['RANDOM_FOREST']['Load_Model_Path'])))
                 
-                # Stop logger, copy in the loaded models object's trainig history, and restart logger
-                stop_logger(logger)
+                # Copy loaded training log
                 copyfile(os.path.join(os.path.dirname(parameters.config['RANDOM_FOREST']['Load_Model_Path']), 'training.log'), os.path.join(path, 'training.log'))
-                logger = start_logger(os.path.join(path, 'training.log'))
 
                 # Report successful load
                 logger.info('Models object successfully loaded.')
@@ -398,12 +390,10 @@ def run_feed_forward_nn(parameters):
             else:
 
                 # Copy loaded model to the session directory
-                copyfile(parameters.config['FEED_FORWARD']['Load_Model_Path'], os.path.join(path, os.path.basename(parameters.config['FEED_FORWARD']['Load_Model_Path'])))
+#                 copyfile(parameters.config['FEED_FORWARD']['Load_Model_Path'], os.path.join(path, os.path.basename(parameters.config['FEED_FORWARD']['Load_Model_Path'])))
                 
-                # Stop logger, overwrite logfile with the loaded models object's trainig history, and restart logger
-                stop_logger(logger)
+                # Copy loaded training log
                 copyfile(os.path.join(os.path.dirname(parameters.config['FEED_FORWARD']['Load_Model_Path']), 'training.log'), os.path.join(path, 'training.log'))
-                logger = start_logger(os.path.join(path, 'training.log'))
 
                 # Report successful load
                 logger.info('Models object successfully loaded.')
@@ -429,10 +419,8 @@ def run_feed_forward_nn(parameters):
                 # Copy loaded model to the session directory
                 copyfile(parameters.config['FEED_FORWARD']['Load_Model_Path'], os.path.join(path, os.path.basename(parameters.config['FEED_FORWARD']['Load_Model_Path'])))
                 
-                # Stop logger, copy in the loaded models object's trainig history, and restart logger
-                stop_logger(logger)
+                # Copy loaded training log
                 copyfile(os.path.join(os.path.dirname(parameters.config['FEED_FORWARD']['Load_Model_Path']), 'training.log'), os.path.join(path, 'training.log'))
-                logger = start_logger(os.path.join(path, 'training.log'))
 
                 # Nicely-formatted parameters of the most successful classifier in the loaded models object
                 logger.info('Models successfully loaded; the best-performing model has the following parameters:')

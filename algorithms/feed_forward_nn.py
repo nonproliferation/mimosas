@@ -2,6 +2,7 @@ import os
 import json
 import ast
 import pickle
+import sys
 
 import numpy as np
 import pandas as pd
@@ -20,8 +21,6 @@ from keras.wrappers.scikit_learn import KerasClassifier
 
 # Disable GPU
 os.environ['CUDA_VISIBLE_DEVICES'] = " "
-os.environ['KMP_WARNINGS'] = 'off'
-os.environ['KMP_AFFINITY'] = 'disabled'
 
 
 # Create function returning a compiled network
@@ -78,7 +77,7 @@ class FeedForwardNN:
 
         # Compatibility-wrapped estimator constructor
         self.estimator = KerasClassifier(build_fn=construct_network, verbose=1)
-        self.models = GridSearchCV(estimator=self.estimator, param_grid=self.hyperparameters, scoring=make_scorer(mcc), cv=int(parameters.config['FEED_FORWARD']['CV_Folds']), return_train_score=True, n_jobs=-1)
+        self.models = GridSearchCV(estimator=self.estimator, param_grid=self.hyperparameters, scoring=make_scorer(mcc), cv=int(parameters.config['FEED_FORWARD']['CV_Folds']), return_train_score=True, n_jobs=-1, refit=True)
         
         # Dict to store results
         self.results = {}

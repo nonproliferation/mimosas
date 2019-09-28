@@ -71,22 +71,7 @@ class Parameters:
         config = configparser.ConfigParser()
         config.read(config_file)
         
-        if (self.check_config(config)):
-            return config
-        else:
-            sys.exit()
-            return None
-
-    def check_config(self, config_file):
-        """
-        Not yet implemented... at the end, once the config file has been finalized, check all values are within operable range
-        
-        @params:
-            config_file   - Required  : file path to where config file is located (Str)
-        """
-
-        print('Checking config file', '[NOT IMPLEMENTED]')
-        return True
+        return config
 
     def generate_config_file(self, config_file):
         """
