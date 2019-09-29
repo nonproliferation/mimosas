@@ -12,7 +12,8 @@ Python 3 is required to run MIMOSAS, along with the following Python packages:
 - scipy,
 - pandas,
 - scikit-learn, 
-- pytorch, and
+- tensorflow, 
+- protobuf and
 - keras.
 
 ### Execution ###
