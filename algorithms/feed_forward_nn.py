@@ -236,7 +236,7 @@ class FeedForwardNN:
         self.logger.info('')
 
         # Copy of model parameter dict without n_features entry (which we want to dynamically change)
-        param_dict = self.results['best_params'].copy()
+        param_dict = self.models.best_params_.copy()
         del param_dict['n_features']
 
         # Log/report parameters of optimized model which are shared by all RFA-created models
@@ -339,7 +339,7 @@ class FeedForwardNN:
         self.logger.info('')
 
         # Copy of model parameter dict without n_features entry (which we want to dynamically change)
-        param_dict = self.results['best_params'].copy()
+        param_dict = self.models.best_params_.copy()
         del param_dict['n_features']
 
         # Log/report parameters of optimized model which are shared by all RFA-created models
