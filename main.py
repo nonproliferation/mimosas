@@ -157,7 +157,7 @@ def run_decision_tree(parameters):
             else:
 
                 # Report successful load to terminal; this session's logfile will be overwritten with log from model's history.
-                print('Loadable models object found at', parameters.config['DECISION_TREE']['Load_Model_Path'])
+                logger.info('Loadable models object found at ' + parameters.config['DECISION_TREE']['Load_Model_Path'])
 
                 # Copy loaded model to the session directory
                 copyfile(parameters.config['DECISION_TREE']['Load_Model_Path'], os.path.join(path, os.path.basename(parameters.config['DECISION_TREE']['Load_Model_Path'])))
@@ -182,14 +182,14 @@ def run_decision_tree(parameters):
             # If load is successful, prepare to test.
             else:
 
+                # Report successful load to terminal; this session's logfile will be overwritten with log from model's history.
+                logger.info('Loadable models object found at ' + parameters.config['DECISION_TREE']['Load_Model_Path'])
+
                 # Copy loaded model to the session directory
                 copyfile(parameters.config['DECISION_TREE']['Load_Model_Path'], os.path.join(path, os.path.basename(parameters.config['DECISION_TREE']['Load_Model_Path'])))
                 
                 # Copy loaded training log
                 copyfile(os.path.join(os.path.dirname(parameters.config['DECISION_TREE']['Load_Model_Path']), 'training.log'), os.path.join(path, 'training.log'))
-
-                # Report successful load
-                logger.info('Models object successfully loaded.')
 
     # Load data
     X_train, X_test, y_train, y_test = load_scramble_data(parameters, logger)
@@ -272,6 +272,9 @@ def run_random_forest(parameters):
             # If load is successful, prepare to continue training.
             else:
 
+                # Report successful load to terminal; this session's logfile will be overwritten with log from model's history.
+                logger.info('Loadable models object found at ' + parameters.config['RANDOM_FOREST']['Load_Model_Path'])
+
                 # Copy loaded model to the session directory
                 copyfile(parameters.config['RANDOM_FOREST']['Load_Model_Path'], os.path.join(path, os.path.basename(parameters.config['RANDOM_FOREST']['Load_Model_Path'])))
                 
@@ -297,7 +300,7 @@ def run_random_forest(parameters):
             else:
 
                 # Report successful load to terminal; this session's logfile will be overwritten with log from model's history.
-                print('Loadable models object found at', parameters.config['RANDOM_FOREST']['Load_Model_Path'])
+                logger.info('Loadable models object found at ' + parameters.config['RANDOM_FOREST']['Load_Model_Path'])
 
                 # Copy loaded model to the session directory
                 copyfile(parameters.config['RANDOM_FOREST']['Load_Model_Path'], os.path.join(path, os.path.basename(parameters.config['RANDOM_FOREST']['Load_Model_Path'])))
@@ -395,8 +398,8 @@ def run_feed_forward_nn(parameters):
                 # Copy loaded training log
                 copyfile(os.path.join(os.path.dirname(parameters.config['FEED_FORWARD']['Load_Model_Path']), 'training.log'), os.path.join(path, 'training.log'))
 
-                # Report successful load
-                logger.info('Models object successfully loaded.')
+                # Report successful load to terminal; this session's logfile will be overwritten with log from model's history.
+                logger.info('Loadable models object found at ' + parameters.config['FEED_FORWARD']['Load_Model_Path'])
 
     else:
         if 'Test' in parameters.config['MAIN']['Mode'].split(','):
