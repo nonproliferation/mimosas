@@ -9,6 +9,9 @@ __pycache__/
 # Saved Models
 saved_models/
 
+# Default Config
+default.config
+
 # C extensions
 *.so
 
